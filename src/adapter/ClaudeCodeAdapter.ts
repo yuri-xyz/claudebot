@@ -18,8 +18,8 @@ import type {
   ProcessHandle,
   UserQuestionAnswers,
   PlanResponse,
-  Logger,
 } from "./types";
+import { noopLogger, type Logger } from "../lib/logger";
 import { buildArgs, DEFAULT_CLAUDE_CODE_MODEL } from "./argBuilder";
 import {
   shouldAutoApprove,
@@ -64,13 +64,6 @@ interface ProcessState {
   lastPlanFilePath?: string;
   parser: NdjsonParser;
 }
-
-const noopLogger: Logger = {
-  debug() {},
-  info() {},
-  warn() {},
-  error() {},
-};
 
 export class ClaudeCodeAdapter {
   private readonly options: Required<

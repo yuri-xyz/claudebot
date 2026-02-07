@@ -47,6 +47,7 @@ export const AllowedPromptSchema = z.object({
 
 export type AllowedPrompt = z.infer<typeof AllowedPromptSchema>;
 
+/** Accepts both camelCase and snake_case fields, normalizes to camelCase. */
 export const ExitPlanModeInputSchema = z
   .object({
     planFilePath: z.string().optional(),
@@ -67,7 +68,18 @@ export const ExitPlanModeInputSchema = z
     remoteSessionTitle: z.string().optional(),
     remote_session_title: z.string().optional(),
   })
-  .passthrough();
+  .passthrough()
+  .transform((d) => ({
+    planFilePath: d.planFilePath ?? d.plan_file_path,
+    plan: d.plan,
+    launchSwarm: d.launchSwarm ?? d.launch_swarm,
+    teammateCount: d.teammateCount ?? d.teammate_count,
+    allowedPrompts: d.allowedPrompts ?? d.allowed_prompts,
+    pushToRemote: d.pushToRemote ?? d.push_to_remote,
+    remoteSessionId: d.remoteSessionId ?? d.remote_session_id,
+    remoteSessionUrl: d.remoteSessionUrl ?? d.remote_session_url,
+    remoteSessionTitle: d.remoteSessionTitle ?? d.remote_session_title,
+  }));
 
 export const UserQuestionOptionSchema = z.object({
   label: z.string(),

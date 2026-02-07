@@ -2,7 +2,7 @@
  * Skills MCP Tool
  *
  * Provides tools for Claude to manage skills:
- * list, install, fetch from URL, and remove.
+ * list, install, and remove.
  */
 
 import { z } from "zod";
@@ -10,7 +10,6 @@ import type { ToolDefinition } from "./types";
 import {
   listSkills,
   installSkill,
-  installSkillFromUrl,
   removeSkill,
 } from "../skills";
 
@@ -35,7 +34,7 @@ export const skillsListTool: ToolDefinition = {
 export const skillsInstallTool: ToolDefinition = {
   name: "claudebot_skills_install",
   description:
-    'Install a skill from GitHub (skills.sh format). Use "owner/repo" or "owner/repo/skill-name".',
+    'Install a skill from GitHub or a URL. Use "owner/repo", "owner/repo/skill-name", or a direct URL.',
   inputShape: {
     identifier: z
       .string()
@@ -46,18 +45,6 @@ export const skillsInstallTool: ToolDefinition = {
   async handler({ identifier }) {
     const skill = await installSkill(identifier);
     return `Installed skill "${skill.metadata.name}" from ${identifier}`;
-  },
-};
-
-export const skillsFetchTool: ToolDefinition = {
-  name: "claudebot_skills_fetch",
-  description: "Fetch and install a skill from a direct URL",
-  inputShape: {
-    url: z.string().describe("URL to the SKILL.md file"),
-  },
-  async handler({ url }) {
-    const skill = await installSkillFromUrl(url);
-    return `Installed skill "${skill.metadata.name}" from ${url}`;
   },
 };
 
@@ -76,6 +63,5 @@ export const skillsRemoveTool: ToolDefinition = {
 export const skillsTools: ToolDefinition[] = [
   skillsListTool,
   skillsInstallTool,
-  skillsFetchTool,
   skillsRemoveTool,
 ];

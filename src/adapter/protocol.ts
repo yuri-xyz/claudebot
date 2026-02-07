@@ -8,8 +8,8 @@ import type {
   PlanResponse,
   UserQuestion,
   PlanModeInput,
-  Logger,
 } from "./types";
+import type { Logger } from "../lib/logger";
 import {
   ControlRequestSchema,
   AskUserQuestionInputSchema,
@@ -40,23 +40,7 @@ export function extractQuestions(input: unknown): UserQuestion[] {
 
 export function extractPlanModeInput(input: unknown): PlanModeInput {
   const result = ExitPlanModeInputSchema.safeParse(input);
-  if (!result.success) {
-    return {};
-  }
-
-  const data = result.data;
-
-  return {
-    planFilePath: data.planFilePath ?? data.plan_file_path,
-    plan: data.plan,
-    launchSwarm: data.launchSwarm ?? data.launch_swarm,
-    teammateCount: data.teammateCount ?? data.teammate_count,
-    allowedPrompts: data.allowedPrompts ?? data.allowed_prompts,
-    pushToRemote: data.pushToRemote ?? data.push_to_remote,
-    remoteSessionId: data.remoteSessionId ?? data.remote_session_id,
-    remoteSessionUrl: data.remoteSessionUrl ?? data.remote_session_url,
-    remoteSessionTitle: data.remoteSessionTitle ?? data.remote_session_title,
-  };
+  return result.success ? result.data : {};
 }
 
 export function buildAllowResponse(

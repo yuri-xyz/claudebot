@@ -6,7 +6,6 @@ import { defineCommand } from "citty";
 import {
   listSkills,
   installSkill,
-  installSkillFromUrl,
 } from "../skills";
 import { ensureDataDirs } from "../config";
 import { errorMessage } from "../lib/errors";
@@ -98,7 +97,7 @@ export default defineCommand({
         const url = args.url as string;
         console.log(`Fetching skill from: ${url}...`);
         try {
-          const skill = await installSkillFromUrl(url);
+          const skill = await installSkill(url);
           console.log(`Installed skill "${skill.metadata.name}"`);
           if (skill.metadata.description) {
             console.log(`  ${skill.metadata.description}`);

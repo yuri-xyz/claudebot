@@ -34,9 +34,11 @@ export async function copyAuthToContainer(
     { stdout: "pipe", stderr: "pipe" },
   );
 
-  const exitCode = await proc.exited;
+  const [stderr, exitCode] = await Promise.all([
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
   if (exitCode !== 0) {
-    const stderr = await new Response(proc.stderr).text();
     throw new Error(`Failed to copy auth credentials: ${stderr.trim()}`);
   }
 }

@@ -1,9 +1,10 @@
 /**
  * Claude Code Adapter Types
  *
- * Self-contained types for spawning and managing Claude Code CLI processes.
- * Inlined from @cli-agent/claude-code-adapter to avoid external dependencies.
+ * Types for spawning and managing Claude Code CLI processes.
  */
+
+import type { Logger } from "../lib/logger";
 
 /**
  * Configuration for spawning a Claude Code process.
@@ -60,15 +61,7 @@ export interface ProcessSpawner {
   ): Promise<{ stdout: string; stderr: string }>;
 }
 
-/**
- * Logger interface for adapter diagnostics.
- */
-export interface Logger {
-  debug(message: string, ...args: unknown[]): void;
-  info(message: string, ...args: unknown[]): void;
-  warn(message: string, ...args: unknown[]): void;
-  error(message: string, ...args: unknown[]): void;
-}
+export type { Logger };
 
 /**
  * Options for creating a ClaudeCodeAdapter.

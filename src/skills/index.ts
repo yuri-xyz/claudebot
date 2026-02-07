@@ -1,6 +1,5 @@
 export {
   installSkill,
-  installSkillFromUrl,
   removeSkill,
   listSkills,
   getSkill,

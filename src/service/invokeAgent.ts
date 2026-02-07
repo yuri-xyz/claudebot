@@ -12,6 +12,7 @@ import {
 } from "../adapter";
 import type { ClaudeCodeRunnerConfig, MessageEvent } from "../adapter";
 import { detectRuntime } from "../sandbox/runtime";
+import { containerExists } from "../sandbox/container";
 import { ensureSandboxReady } from "../sandbox/setup";
 import type { SandboxConfig } from "../sandbox/types";
 import type { IncomingMessage } from "../connectors/types";
@@ -28,27 +29,8 @@ export async function invokeAgent(
   logger: Logger,
 ): Promise<string> {
   const sandboxConfig = config.sandbox;
+  const spawner = await resolveSpawner(sandboxConfig, logger);
 
-  // Determine if we should use sandbox or direct mode
-  const useSandbox = await shouldUseSandbox(sandboxConfig);
-
-  let spawner;
-  if (useSandbox) {
-    const runtime = await detectRuntime(sandboxConfig.runtime);
-    const sandboxCfg: SandboxConfig = {
-      runtime,
-      containerName: sandboxConfig.containerName,
-      image: sandboxConfig.image,
-      mountPaths: sandboxConfig.mountPaths,
-    };
-
-    await ensureSandboxReady(sandboxCfg, logger);
-    spawner = createSandboxedProcessSpawner(runtime, sandboxConfig.containerName);
-  } else {
-    spawner = createBunProcessSpawner();
-  }
-
-  // Generate MCP config
   const mcpConfigPath = await generateMcpConfig();
 
   const adapter = new ClaudeCodeAdapter({
@@ -62,7 +44,6 @@ export async function invokeAgent(
     adapter.on("message", (event: MessageEvent) => {
       const msg = event.message as Record<string, unknown>;
 
-      // Collect assistant text from content blocks
       if (msg.type === "content_block_delta") {
         const delta = msg.delta as Record<string, unknown> | undefined;
         if (delta?.type === "text_delta" && typeof delta.text === "string") {
@@ -70,7 +51,6 @@ export async function invokeAgent(
         }
       }
 
-      // Also capture result text
       if (msg.type === "result" && typeof msg.result === "string") {
         responseChunks.push(msg.result);
       }
@@ -104,19 +84,24 @@ export async function invokeAgent(
   });
 }
 
-async function shouldUseSandbox(
+async function resolveSpawner(
   sandboxConfig: ClaudebotConfig["sandbox"],
-): Promise<boolean> {
+  logger: Logger,
+) {
   try {
     const runtime = await detectRuntime(sandboxConfig.runtime);
-    // Check if container exists
-    const proc = Bun.spawn(
-      [runtime, "inspect", sandboxConfig.containerName],
-      { stdout: "pipe", stderr: "pipe" },
-    );
-    const exitCode = await proc.exited;
-    return exitCode === 0;
+    if (await containerExists(runtime, sandboxConfig.containerName)) {
+      const sandboxCfg: SandboxConfig = {
+        runtime,
+        containerName: sandboxConfig.containerName,
+        image: sandboxConfig.image,
+        mountPaths: sandboxConfig.mountPaths,
+      };
+      await ensureSandboxReady(sandboxCfg, logger);
+      return createSandboxedProcessSpawner(runtime, sandboxConfig.containerName);
+    }
   } catch {
-    return false;
+    // No container runtime available, fall through to direct mode
   }
+  return createBunProcessSpawner();
 }

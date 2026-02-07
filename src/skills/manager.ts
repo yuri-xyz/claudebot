@@ -35,9 +35,6 @@ export async function installSkill(identifier: string): Promise<ParsedSkill> {
   return skill;
 }
 
-/** @deprecated Use {@link installSkill} directly — it handles both identifiers and URLs. */
-export const installSkillFromUrl = installSkill;
-
 export async function removeSkill(name: string): Promise<void> {
   const filePath = skillFilePath(name);
   const file = Bun.file(filePath);

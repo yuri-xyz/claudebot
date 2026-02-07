@@ -47,9 +47,11 @@ export async function startSystemd(): Promise<void> {
     ["systemctl", "--user", "start", SERVICE_NAME],
     { stdout: "pipe", stderr: "pipe" },
   );
-  const exitCode = await proc.exited;
+  const [stderr, exitCode] = await Promise.all([
+    new Response(proc.stderr).text(),
+    proc.exited,
+  ]);
   if (exitCode !== 0) {
-    const stderr = await new Response(proc.stderr).text();
     throw new Error(`Failed to start service: ${stderr.trim()}`);
   }
 }
