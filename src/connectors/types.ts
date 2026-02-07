@@ -10,7 +10,13 @@ export interface IncomingMessage {
   content: string;
   replyTo: ReplyTarget;
   cwd: string;
+  resumeSessionId?: string;
   metadata?: Record<string, unknown>;
+}
+
+export interface AgentResponse {
+  response: string;
+  sessionId?: string;
 }
 
 export type ReplyTarget =
@@ -18,4 +24,4 @@ export type ReplyTarget =
   | { type: "cli"; write: (text: string) => void }
   | { type: "cron"; jobId: string };
 
-export type InvokeAgentFn = (message: IncomingMessage) => Promise<string>;
+export type InvokeAgentFn = (message: IncomingMessage) => Promise<AgentResponse>;

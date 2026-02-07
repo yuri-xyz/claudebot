@@ -38,6 +38,7 @@ export interface SpawnOptions {
 export interface ProcessHandle {
   pid: number | undefined;
   writeStdin(data: string): boolean;
+  closeStdin(): void;
   kill(signal?: string): void;
   onStdout(listener: (data: Buffer) => void): void;
   onStderr(listener: (data: Buffer) => void): void;

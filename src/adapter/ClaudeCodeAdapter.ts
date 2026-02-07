@@ -147,7 +147,7 @@ export class ClaudeCodeAdapter {
     const executable = config.executablePath ?? "claude";
     const args = buildArgs(config, DEFAULT_CLAUDE_CODE_MODEL);
 
-    this.logger.info(
+    this.logger.debug(
       `Spawning Claude Code process ${processId}: ${executable} ${args.join(" ")}`,
     );
 
@@ -179,6 +179,7 @@ export class ClaudeCodeAdapter {
       `[${processId}] Sending user message: ${userMessage.slice(0, 200)}`,
     );
     handle.writeStdin(userMessage + "\n");
+    handle.closeStdin();
 
     handle.onStdout((data: Buffer) => {
       const chunk = data.toString();
@@ -208,7 +209,8 @@ export class ClaudeCodeAdapter {
     });
 
     handle.onExit((code: number | null, signal: string | null) => {
-      this.logger.info(
+      state.parser.flush();
+      this.logger.debug(
         `Process ${processId} exited with code ${code}, signal ${signal}`,
       );
       this.emit("exit", { processId, code, signal });

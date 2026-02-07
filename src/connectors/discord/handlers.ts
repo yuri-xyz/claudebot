@@ -56,7 +56,7 @@ export async function handleMessage(
   };
 
   try {
-    const response = await invokeAgent(incoming);
+    const { response } = await invokeAgent(incoming);
     const chunks = chunkMessage(response);
 
     for (const chunk of chunks) {
@@ -100,7 +100,7 @@ export async function handleSlashCommand(
     };
 
     try {
-      const response = await invokeAgent(incoming);
+      const { response } = await invokeAgent(incoming);
       const chunks = chunkMessage(response);
 
       await interaction.editReply(chunks[0]!);

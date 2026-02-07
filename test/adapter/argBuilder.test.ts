@@ -11,12 +11,11 @@ describe("buildArgs", () => {
 
     const args = buildArgs(config);
 
+    expect(args).toContain("--print");
     expect(args).toContain("--input-format");
     expect(args).toContain("stream-json");
     expect(args).toContain("--output-format");
     expect(args).toContain("--verbose");
-    expect(args).toContain("--permission-prompt-tool");
-    expect(args).toContain("stdio");
     expect(args).toContain("--model");
   });
 
@@ -68,7 +67,7 @@ describe("buildArgs", () => {
 
     const args = buildArgs(config);
 
-    expect(args).toContain("--max-cost-usd");
+    expect(args).toContain("--max-budget-usd");
     expect(args).toContain("5");
   });
 

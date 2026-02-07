@@ -55,7 +55,7 @@ async function runSinglePrompt(
   };
 
   try {
-    const response = await invokeAgent(message, config, logger);
+    const { response } = await invokeAgent(message, config, logger);
     console.log(response);
   } catch (err) {
     console.error(
@@ -78,6 +78,7 @@ async function runInteractive(
   process.stdout.write("> ");
 
   let buffer = "";
+  let sessionId: string | undefined;
 
   while (true) {
     const { done, value } = await reader.read();
@@ -109,11 +110,13 @@ async function runInteractive(
           write: (text) => process.stdout.write(text),
         },
         cwd: process.cwd(),
+        resumeSessionId: sessionId,
       };
 
       try {
-        const response = await invokeAgent(message, config, logger);
-        console.log(`\n${response}\n`);
+        const result = await invokeAgent(message, config, logger);
+        sessionId = result.sessionId;
+        console.log(`\n${result.response}\n`);
       } catch (err) {
         console.error(
           "Error:",

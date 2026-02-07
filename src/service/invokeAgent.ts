@@ -15,19 +15,19 @@ import { detectRuntime } from "../sandbox/runtime";
 import { containerExists } from "../sandbox/container";
 import { ensureSandboxReady } from "../sandbox/setup";
 import type { SandboxConfig } from "../sandbox/types";
-import type { IncomingMessage } from "../connectors/types";
+import type { IncomingMessage, AgentResponse } from "../connectors/types";
 import type { ClaudebotConfig } from "../config/types";
 import type { Logger } from "../lib/logger";
 import { generateMcpConfig } from "../tools";
 
 /**
- * Invokes Claude Code with a message and returns the text response.
+ * Invokes Claude Code with a message and returns the response with session metadata.
  */
 export async function invokeAgent(
   message: IncomingMessage,
   config: ClaudebotConfig,
   logger: Logger,
-): Promise<string> {
+): Promise<AgentResponse> {
   const sandboxConfig = config.sandbox;
   const spawner = await resolveSpawner(sandboxConfig, logger);
 
@@ -38,8 +38,9 @@ export async function invokeAgent(
     logger,
   });
 
-  return new Promise<string>((resolve, reject) => {
+  return new Promise<AgentResponse>((resolve, reject) => {
     const responseChunks: string[] = [];
+    let sessionId: string | undefined;
 
     adapter.on("message", (event: MessageEvent) => {
       const msg = event.message as Record<string, unknown>;
@@ -51,8 +52,13 @@ export async function invokeAgent(
         }
       }
 
-      if (msg.type === "result" && typeof msg.result === "string") {
-        responseChunks.push(msg.result);
+      if (msg.type === "result") {
+        if (typeof msg.result === "string") {
+          responseChunks.push(msg.result);
+        }
+        if (typeof msg.session_id === "string") {
+          sessionId = msg.session_id;
+        }
       }
     });
 
@@ -63,11 +69,11 @@ export async function invokeAgent(
     adapter.on("exit", (event) => {
       const response = responseChunks.join("").trim();
       if (response) {
-        resolve(response);
+        resolve({ response, sessionId });
       } else if (event.code !== 0) {
         reject(new Error(`Claude Code exited with code ${event.code}`));
       } else {
-        resolve("(No response)");
+        resolve({ response: "(No response)", sessionId });
       }
     });
 
@@ -75,6 +81,7 @@ export async function invokeAgent(
       prompt: message.content,
       cwd: message.cwd,
       permissionMode: "bypassPermissions",
+      resumeSessionId: message.resumeSessionId,
       maxTurns: config.agent.maxTurns,
       maxBudgetUsd: config.agent.maxBudgetUsd,
       mcpConfigPath,

@@ -12,6 +12,8 @@ const main = defineCommand({
     service: () => import("./cli/service").then((m) => m.default),
     chat: () => import("./cli/chat").then((m) => m.default),
     skills: () => import("./cli/skills").then((m) => m.default),
+    doctor: () => import("./cli/doctor").then((m) => m.default),
+    setup: () => import("./cli/setup").then((m) => m.default),
     daemon: () =>
       import("./service/daemon").then((m) =>
         defineCommand({

@@ -30,7 +30,7 @@ export async function executeCronJob(
   };
 
   try {
-    const response = await invokeAgent(incoming);
+    const { response } = await invokeAgent(incoming);
     logger.info(
       `Cron job ${job.name} completed. Response length: ${response.length}`,
     );

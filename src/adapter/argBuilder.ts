@@ -11,13 +11,12 @@ export function buildArgs(
   model: string = DEFAULT_CLAUDE_CODE_MODEL,
 ): string[] {
   const args: string[] = [
+    "--print",
     "--input-format",
     "stream-json",
     "--output-format",
     "stream-json",
     "--verbose",
-    "--permission-prompt-tool",
-    "stdio",
     "--model",
     model,
   ];
@@ -35,7 +34,7 @@ export function buildArgs(
   }
 
   if (config.maxBudgetUsd !== undefined) {
-    args.push("--max-cost-usd", String(config.maxBudgetUsd));
+    args.push("--max-budget-usd", String(config.maxBudgetUsd));
   }
 
   if (config.allowedTools && config.allowedTools.length > 0) {

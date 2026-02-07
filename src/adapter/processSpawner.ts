@@ -35,7 +35,7 @@ export function createBunProcessSpawner(): ProcessSpawner {
       const errorListeners: Array<(error: Error) => void> = [];
 
       // Read stdout stream
-      (async () => {
+      const stdoutDone = (async () => {
         try {
           const reader = proc.stdout.getReader();
           while (true) {
@@ -74,8 +74,9 @@ export function createBunProcessSpawner(): ProcessSpawner {
         }
       })();
 
-      // Wait for exit
-      proc.exited.then((code) => {
+      // Wait for exit AND stdout to fully drain before notifying listeners
+      proc.exited.then(async (code) => {
+        await stdoutDone;
         for (const listener of exitListeners) {
           listener(code, null);
         }
@@ -86,9 +87,17 @@ export function createBunProcessSpawner(): ProcessSpawner {
         writeStdin(data: string): boolean {
           try {
             proc.stdin.write(data);
+            proc.stdin.flush();
             return true;
           } catch {
             return false;
+          }
+        },
+        closeStdin() {
+          try {
+            proc.stdin.end();
+          } catch {
+            // stdin may already be closed
           }
         },
         kill(signal?: string) {
