@@ -5,14 +5,15 @@
  * Started by launchd/systemd via `claudebot daemon`.
  */
 
+import ms from "ms";
 import { loadConfig, ensureDataDirs } from "../config";
 import { createLogger } from "../lib/logger";
 import { DiscordConnector } from "../connectors/discord";
-import type { Connector, IncomingMessage } from "../connectors/types";
+import type { Connector } from "../connectors/types";
 import { loadCronStorage, getJobsDue, executeCronJob } from "../cron";
 import { invokeAgent } from "./invokeAgent";
 
-const CRON_CHECK_INTERVAL_MS = 60_000; // Check every minute
+const CRON_CHECK_INTERVAL_MS = ms("1m");
 
 export async function runDaemon(): Promise<void> {
   const logger = createLogger("daemon");

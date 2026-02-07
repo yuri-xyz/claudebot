@@ -5,6 +5,7 @@
  * list, install, fetch from URL, and remove.
  */
 
+import { z } from "zod";
 import type { ToolDefinition } from "./types";
 import {
   listSkills,
@@ -16,11 +17,7 @@ import {
 export const skillsListTool: ToolDefinition = {
   name: "claudebot_skills_list",
   description: "List all installed Claude skills",
-  inputSchema: {
-    type: "object",
-    properties: {},
-    required: [],
-  },
+  inputShape: {},
   async handler() {
     const skills = await listSkills();
     if (skills.length === 0) {
@@ -39,19 +36,14 @@ export const skillsInstallTool: ToolDefinition = {
   name: "claudebot_skills_install",
   description:
     'Install a skill from GitHub (skills.sh format). Use "owner/repo" or "owner/repo/skill-name".',
-  inputSchema: {
-    type: "object",
-    properties: {
-      identifier: {
-        type: "string",
-        description:
-          'Skill identifier: "owner/repo", "owner/repo/skill-name", or a URL',
-      },
-    },
-    required: ["identifier"],
+  inputShape: {
+    identifier: z
+      .string()
+      .describe(
+        'Skill identifier: "owner/repo", "owner/repo/skill-name", or a URL',
+      ),
   },
-  async handler(input) {
-    const identifier = input.identifier as string;
+  async handler({ identifier }) {
     const skill = await installSkill(identifier);
     return `Installed skill "${skill.metadata.name}" from ${identifier}`;
   },
@@ -60,18 +52,10 @@ export const skillsInstallTool: ToolDefinition = {
 export const skillsFetchTool: ToolDefinition = {
   name: "claudebot_skills_fetch",
   description: "Fetch and install a skill from a direct URL",
-  inputSchema: {
-    type: "object",
-    properties: {
-      url: {
-        type: "string",
-        description: "URL to the SKILL.md file",
-      },
-    },
-    required: ["url"],
+  inputShape: {
+    url: z.string().describe("URL to the SKILL.md file"),
   },
-  async handler(input) {
-    const url = input.url as string;
+  async handler({ url }) {
     const skill = await installSkillFromUrl(url);
     return `Installed skill "${skill.metadata.name}" from ${url}`;
   },
@@ -80,18 +64,10 @@ export const skillsFetchTool: ToolDefinition = {
 export const skillsRemoveTool: ToolDefinition = {
   name: "claudebot_skills_remove",
   description: "Remove an installed skill by name",
-  inputSchema: {
-    type: "object",
-    properties: {
-      name: {
-        type: "string",
-        description: "Name of the skill to remove",
-      },
-    },
-    required: ["name"],
+  inputShape: {
+    name: z.string().describe("Name of the skill to remove"),
   },
-  async handler(input) {
-    const name = input.name as string;
+  async handler({ name }) {
     await removeSkill(name);
     return `Removed skill "${name}"`;
   },

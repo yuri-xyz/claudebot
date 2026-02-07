@@ -16,14 +16,20 @@ export function matchesCron(expression: string, date: Date): boolean {
   const parts = expression.trim().split(/\s+/);
   if (parts.length !== 5) return false;
 
-  const [minuteExpr, hourExpr, domExpr, monthExpr, dowExpr] = parts;
+  const [minuteExpr, hourExpr, domExpr, monthExpr, dowExpr] = parts as [
+    string,
+    string,
+    string,
+    string,
+    string,
+  ];
 
   return (
-    matchesField(minuteExpr!, date.getMinutes(), 0, 59) &&
-    matchesField(hourExpr!, date.getHours(), 0, 23) &&
-    matchesField(domExpr!, date.getDate(), 1, 31) &&
-    matchesField(monthExpr!, date.getMonth() + 1, 1, 12) &&
-    matchesField(dowExpr!, date.getDay(), 0, 6)
+    matchesField(minuteExpr, date.getMinutes(), 0, 59) &&
+    matchesField(hourExpr, date.getHours(), 0, 23) &&
+    matchesField(domExpr, date.getDate(), 1, 31) &&
+    matchesField(monthExpr, date.getMonth() + 1, 1, 12) &&
+    matchesField(dowExpr, date.getDay(), 0, 6)
   );
 }
 
@@ -33,22 +39,20 @@ function matchesField(
   min: number,
   max: number,
 ): boolean {
-  // Wildcard
   if (expr === "*") return true;
 
   // Step: */n or range/n
   if (expr.includes("/")) {
-    const [rangeStr, stepStr] = expr.split("/");
-    const step = parseInt(stepStr!, 10);
+    const [rangeStr, stepStr] = expr.split("/") as [string, string];
+    const step = parseInt(stepStr, 10);
     if (isNaN(step) || step <= 0) return false;
 
     let rangeMin = min;
     let rangeMax = max;
     if (rangeStr !== "*") {
-      const range = parseRange(rangeStr!, min, max);
+      const range = parseRange(rangeStr);
       if (!range) return false;
-      rangeMin = range[0]!;
-      rangeMax = range[1]!;
+      [rangeMin, rangeMax] = range;
     }
 
     if (value < rangeMin || value > rangeMax) return false;
@@ -62,9 +66,10 @@ function matchesField(
 
   // Range: a-b
   if (expr.includes("-")) {
-    const range = parseRange(expr, min, max);
+    const range = parseRange(expr);
     if (!range) return false;
-    return value >= range[0]! && value <= range[1]!;
+    const [start, end] = range;
+    return value >= start && value <= end;
   }
 
   // Single value
@@ -72,14 +77,10 @@ function matchesField(
   return !isNaN(num) && num === value;
 }
 
-function parseRange(
-  expr: string,
-  _min: number,
-  _max: number,
-): [number, number] | null {
-  const [startStr, endStr] = expr.split("-");
-  const start = parseInt(startStr!, 10);
-  const end = parseInt(endStr!, 10);
+function parseRange(expr: string): [number, number] | null {
+  const [startStr, endStr] = expr.split("-") as [string, string];
+  const start = parseInt(startStr, 10);
+  const end = parseInt(endStr, 10);
   if (isNaN(start) || isNaN(end)) return null;
   return [start, end];
 }

@@ -35,18 +35,8 @@ export async function installSkill(identifier: string): Promise<ParsedSkill> {
   return skill;
 }
 
-export async function installSkillFromUrl(url: string): Promise<ParsedSkill> {
-  await ensureSkillsDir();
-
-  const source = resolveSkillSource(url);
-  const content = await fetchSkillContent(source);
-  const skill = parseSkillContent(content, url);
-
-  const filePath = skillFilePath(skill.metadata.name);
-  await Bun.write(filePath, skill.rawContent);
-
-  return skill;
-}
+/** @deprecated Use {@link installSkill} directly — it handles both identifiers and URLs. */
+export const installSkillFromUrl = installSkill;
 
 export async function removeSkill(name: string): Promise<void> {
   const filePath = skillFilePath(name);

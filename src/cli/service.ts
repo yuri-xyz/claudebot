@@ -3,6 +3,7 @@
  */
 
 import { defineCommand } from "citty";
+import { errorMessage } from "../lib/errors";
 import { detectPlatform } from "../service/platform";
 import {
   installLaunchd,
@@ -68,7 +69,7 @@ export default defineCommand({
           console.log("Sandbox ready.");
         } catch (err) {
           console.warn(
-            `\nSandbox setup skipped: ${err instanceof Error ? err.message : "Unknown error"}`,
+            `\nSandbox setup skipped: ${errorMessage(err)}`,
           );
           console.warn(
             "Claude Code will run directly on the host until a container runtime is available.",
@@ -100,7 +101,7 @@ export default defineCommand({
         } catch (err) {
           console.error(
             "Error:",
-            err instanceof Error ? err.message : "Unknown error",
+            errorMessage(err),
           );
           process.exit(1);
         }
@@ -126,7 +127,7 @@ export default defineCommand({
         } catch (err) {
           console.error(
             "Error:",
-            err instanceof Error ? err.message : "Unknown error",
+            errorMessage(err),
           );
           process.exit(1);
         }

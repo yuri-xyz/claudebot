@@ -7,6 +7,7 @@
 import { defineCommand } from "citty";
 import { loadConfig, ensureDataDirs } from "../config";
 import { createLogger } from "../lib/logger";
+import { errorMessage } from "../lib/errors";
 import { invokeAgent } from "../service/invokeAgent";
 import type { IncomingMessage } from "../connectors/types";
 
@@ -59,7 +60,7 @@ async function runSinglePrompt(
   } catch (err) {
     console.error(
       "Error:",
-      err instanceof Error ? err.message : "Unknown error",
+      errorMessage(err),
     );
     process.exit(1);
   }
@@ -116,7 +117,7 @@ async function runInteractive(
       } catch (err) {
         console.error(
           "Error:",
-          err instanceof Error ? err.message : "Unknown error",
+          errorMessage(err),
         );
       }
 

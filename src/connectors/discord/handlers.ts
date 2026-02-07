@@ -8,25 +8,20 @@ import type { Message, ChatInputCommandInteraction } from "discord.js";
 import type { InvokeAgentFn, IncomingMessage } from "../types";
 import type { DiscordConfig } from "../../config/types";
 import { chunkMessage, formatError, formatThinking } from "./formatting";
+import { errorMessage } from "../../lib/errors";
 
 function isAllowed(
   config: DiscordConfig,
   userId: string,
   channelId: string,
 ): boolean {
-  if (
-    config.allowedUserIds.length > 0 &&
-    !config.allowedUserIds.includes(userId)
-  ) {
-    return false;
-  }
-  if (
-    config.allowedChannelIds.length > 0 &&
-    !config.allowedChannelIds.includes(channelId)
-  ) {
-    return false;
-  }
-  return true;
+  const userOk =
+    config.allowedUserIds.length === 0 ||
+    config.allowedUserIds.includes(userId);
+  const channelOk =
+    config.allowedChannelIds.length === 0 ||
+    config.allowedChannelIds.includes(channelId);
+  return userOk && channelOk;
 }
 
 export async function handleMessage(
@@ -68,9 +63,7 @@ export async function handleMessage(
       await msg.reply(chunk);
     }
   } catch (err) {
-    const errMsg =
-      err instanceof Error ? err.message : "Unknown error occurred";
-    await msg.reply(formatError(errMsg));
+    await msg.reply(formatError(errorMessage(err)));
   }
 }
 
@@ -115,9 +108,7 @@ export async function handleSlashCommand(
         await interaction.followUp(chunks[i]!);
       }
     } catch (err) {
-      const errMsg =
-        err instanceof Error ? err.message : "Unknown error occurred";
-      await interaction.editReply(formatError(errMsg));
+      await interaction.editReply(formatError(errorMessage(err)));
     }
   }
 

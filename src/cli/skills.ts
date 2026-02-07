@@ -9,6 +9,7 @@ import {
   installSkillFromUrl,
 } from "../skills";
 import { ensureDataDirs } from "../config";
+import { errorMessage } from "../lib/errors";
 
 export default defineCommand({
   meta: {
@@ -72,7 +73,7 @@ export default defineCommand({
         } catch (err) {
           console.error(
             "Error:",
-            err instanceof Error ? err.message : "Unknown error",
+            errorMessage(err),
           );
           process.exit(1);
         }
@@ -105,7 +106,7 @@ export default defineCommand({
         } catch (err) {
           console.error(
             "Error:",
-            err instanceof Error ? err.message : "Unknown error",
+            errorMessage(err),
           );
           process.exit(1);
         }
