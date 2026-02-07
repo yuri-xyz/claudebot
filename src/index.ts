@@ -1,0 +1,39 @@
+#!/usr/bin/env bun
+
+import { defineCommand, runMain } from "citty";
+
+const main = defineCommand({
+  meta: {
+    name: "claudebot",
+    version: "0.1.0",
+    description: "Personal AI bot powered by Claude Code",
+  },
+  subCommands: {
+    service: () => import("./cli/service").then((m) => m.default),
+    chat: () => import("./cli/chat").then((m) => m.default),
+    skills: () => import("./cli/skills").then((m) => m.default),
+    daemon: () =>
+      import("./service/daemon").then((m) =>
+        defineCommand({
+          meta: { name: "daemon", description: "Run the daemon (internal)" },
+          async run() {
+            await m.runDaemon();
+          },
+        }),
+      ),
+    "mcp-server": () =>
+      import("./tools/server").then((m) =>
+        defineCommand({
+          meta: {
+            name: "mcp-server",
+            description: "Run the MCP tool server (internal)",
+          },
+          async run() {
+            await m.runMcpServer();
+          },
+        }),
+      ),
+  },
+});
+
+runMain(main);
