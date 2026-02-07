@@ -34,10 +34,11 @@ export async function handleMessage(
 
   if (!isAllowed(config, msg.author.id, msg.channelId)) return;
 
-  // Show typing indicator
-  if ("sendTyping" in msg.channel) {
-    await msg.channel.sendTyping();
-  }
+  // Keep typing indicator alive until response is ready
+  const typingInterval =
+    "sendTyping" in msg.channel
+      ? startTypingInterval(msg.channel as { sendTyping(): Promise<void> })
+      : undefined;
 
   const incoming: IncomingMessage = {
     source: "discord",
@@ -64,6 +65,8 @@ export async function handleMessage(
     }
   } catch (err) {
     await msg.reply(formatError(errorMessage(err)));
+  } finally {
+    if (typingInterval) clearInterval(typingInterval);
   }
 }
 
@@ -115,4 +118,15 @@ export async function handleSlashCommand(
   if (interaction.commandName === "status") {
     await interaction.reply("Claudebot is running.");
   }
+}
+
+const TYPING_REFRESH_MS = 7_000;
+
+function startTypingInterval(
+  channel: { sendTyping(): Promise<void> },
+): ReturnType<typeof setInterval> {
+  channel.sendTyping().catch(() => {});
+  return setInterval(() => {
+    channel.sendTyping().catch(() => {});
+  }, TYPING_REFRESH_MS);
 }
