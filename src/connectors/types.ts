@@ -12,7 +12,7 @@ export interface ImageAttachment {
 }
 
 export interface IncomingMessage {
-  source: "discord" | "cli" | "cron";
+  source: "discord" | "cli" | "cron" | "signal";
   content: string;
   replyTo: ReplyTarget;
   cwd: string;
@@ -34,6 +34,7 @@ export interface AgentCallbacks {
 export type ReplyTarget =
   | { type: "discord"; channelId: string; messageId?: string }
   | { type: "cli"; write: (text: string) => void }
-  | { type: "cron"; jobId: string };
+  | { type: "cron"; jobId: string }
+  | { type: "signal"; recipientNumber: string; groupId?: string };
 
 export type InvokeAgentFn = (message: IncomingMessage) => Promise<AgentResponse>;

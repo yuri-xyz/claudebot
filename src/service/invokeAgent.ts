@@ -5,6 +5,7 @@
  * Used by all frontends (Discord, CLI chat, cron).
  */
 
+import { mkdirSync } from "fs";
 import {
   ClaudeCodeAdapter,
   createBunProcessSpawner,
@@ -25,25 +26,52 @@ import type { ClaudebotConfig } from "../config/types";
 import type { Logger } from "../lib/logger";
 import { generateMcpConfig } from "../tools";
 import { paths } from "../config/paths";
-import { SOUL_INSTRUCTIONS, DISCORD_FORMATTING, DISCORD_IMAGES, discordReminders } from "./promptParts";
+import { wrapXml } from "../lib/xml";
+import { SOUL_INSTRUCTIONS, MEMORIES_INSTRUCTIONS, WORKSPACE_INSTRUCTIONS, DISCORD_FORMATTING, DISCORD_IMAGES, SIGNAL_FORMATTING, discordReminders, signalReminders } from "./promptParts";
 
 /**
  * Invokes Claude Code with a message and returns the response with session metadata.
  */
+/** Model override pattern: /opus, /sonnet, /haiku anywhere in the message */
+const MODEL_OVERRIDE_RE = /\/(opus|sonnet|haiku)\b/i;
+
+function extractModelOverride(content: string): { content: string; model?: string } {
+  const match = MODEL_OVERRIDE_RE.exec(content);
+  if (!match) return { content };
+  return {
+    content: content.replace(MODEL_OVERRIDE_RE, "").replace(/\s{2,}/g, " ").trim(),
+    model: match[1]!.toLowerCase(),
+  };
+}
+
 export async function invokeAgent(
   message: IncomingMessage,
   config: ClaudebotConfig,
   logger: Logger,
   callbacks?: AgentCallbacks,
 ): Promise<AgentResponse> {
+  // Parse model override from message content (e.g. "/opus")
+  const { content: cleanContent, model: modelOverride } = extractModelOverride(message.content);
+  if (modelOverride) {
+    message = { ...message, content: cleanContent };
+    logger.info(`Model override: ${modelOverride}`);
+  }
+
   const sandboxConfig = config.sandbox;
   const spawner = await resolveSpawner(sandboxConfig, logger);
 
   const discordChannelId =
     message.replyTo.type === "discord" ? message.replyTo.channelId : undefined;
-  const mcpConfigPath = await generateMcpConfig(discordChannelId);
+  const signalRecipient =
+    message.replyTo.type === "signal"
+      ? (message.replyTo.groupId ?? message.replyTo.recipientNumber)
+      : undefined;
+  const signalAccount = config.signal?.account;
+  const mcpConfigPath = await generateMcpConfig(discordChannelId, signalRecipient, signalAccount);
   const hasImages = (message.images?.length ?? 0) > 0;
   const systemPrompt = await buildSystemPrompt(config, message.source, hasImages);
+
+  mkdirSync(paths.sandboxDir, { recursive: true });
 
   const adapter = new ClaudeCodeAdapter({
     processSpawner: spawner,
@@ -76,15 +104,10 @@ export async function invokeAgent(
           },
         )
         .with(
-          { type: "result", result: P.string },
-          ({ result }) => {
+          { type: "result", result: P.string, session_id: P.optional(P.string) },
+          ({ result, session_id }) => {
             responseChunks.push(result);
-          },
-        )
-        .with(
-          { type: "result", session_id: P.string },
-          ({ session_id }) => {
-            sessionId = session_id;
+            if (session_id) sessionId = session_id;
           },
         )
         .otherwise(() => {});
@@ -119,6 +142,7 @@ export async function invokeAgent(
       maxBudgetUsd: config.agent.maxBudgetUsd,
       systemPrompt,
       mcpConfigPath,
+      model: modelOverride ?? config.agent.model,
     };
 
     adapter.start(runnerConfig).catch(reject);
@@ -133,11 +157,15 @@ function buildPromptContent(
   const hasImages = (images?.length ?? 0) > 0;
   const hasOversized = (oversized?.length ?? 0) > 0;
 
-  if (!hasImages && !hasOversized) return message.content;
+  const wrappedContent = message.content.trim()
+    ? wrapXml("user_message", message.content)
+    : "";
+
+  if (!hasImages && !hasOversized) return wrappedContent || message.content;
 
   const blocks: ContentBlock[] = [];
-  if (message.content.trim()) {
-    blocks.push({ type: "text", text: message.content });
+  if (wrappedContent) {
+    blocks.push({ type: "text", text: wrappedContent });
   }
   if (images) {
     for (const img of images) {
@@ -159,23 +187,21 @@ async function buildSystemPrompt(
   source: IncomingMessage["source"],
   hasImages: boolean,
 ): Promise<string> {
-  let soulContent: string | undefined;
-
-  try {
-    const file = Bun.file(paths.soulFile);
-    if (await file.exists()) {
-      soulContent = (await file.text()).trim();
-    }
-  } catch {
-    // SOUL.md doesn't exist or can't be read, that's fine
-  }
+  const [soulContent, memoriesContent] = await Promise.all([
+    readOptionalFile(paths.soulFile),
+    readOptionalFile(paths.memoriesFile),
+  ]);
 
   const parts: string[] = [
     soulContent ?? config.agent.systemPrompt,
     SOUL_INSTRUCTIONS,
+    MEMORIES_INSTRUCTIONS,
+    ...(memoriesContent ? [wrapXml("memories", memoriesContent)] : []),
+    WORKSPACE_INSTRUCTIONS,
     ...(source === "discord"
       ? [DISCORD_FORMATTING, ...(hasImages ? [DISCORD_IMAGES] : []), discordReminders()]
       : []),
+    ...(source === "signal" ? [SIGNAL_FORMATTING, signalReminders()] : []),
   ];
 
   return parts.join("\n\n");
@@ -196,4 +222,17 @@ async function resolveSpawner(
     // No container runtime available, fall through to direct mode
   }
   return createBunProcessSpawner();
+}
+
+/** Read a text file, returning trimmed content or undefined if missing/unreadable. */
+async function readOptionalFile(path: string): Promise<string | undefined> {
+  try {
+    const file = Bun.file(path);
+    if (await file.exists()) {
+      return (await file.text()).trim() || undefined;
+    }
+  } catch {
+    // File doesn't exist or can't be read
+  }
+  return undefined;
 }

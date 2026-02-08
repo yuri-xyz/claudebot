@@ -99,6 +99,31 @@ export default defineCommand({
       },
     }),
 
+    restart: defineCommand({
+      meta: {
+        name: "restart",
+        description: "Restart the background service",
+      },
+      async run() {
+        const svc = getServiceManager();
+
+        try {
+          const status = await svc.getStatus();
+          if (status.running) {
+            console.log("Stopping claudebot service...");
+            await svc.stop();
+          }
+
+          console.log("Starting claudebot service...");
+          await svc.start();
+          console.log("Service restarted.");
+        } catch (err) {
+          console.error("Error:", errorMessage(err));
+          process.exit(1);
+        }
+      },
+    }),
+
     logs: defineCommand({
       meta: {
         name: "logs",

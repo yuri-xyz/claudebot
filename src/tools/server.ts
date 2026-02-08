@@ -8,6 +8,8 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { skillsTools } from "./skills";
 import { cronTools } from "./cron";
+import { createX402Tools } from "./x402";
+import { createSignalTools } from "./signal";
 import type { ToolDefinition } from "./types";
 import { errorMessage } from "../lib/errors";
 
@@ -38,7 +40,7 @@ export async function runMcpServer(): Promise<void> {
     version: "0.1.0",
   });
 
-  const allTools: ToolDefinition[] = [...skillsTools, ...cronTools];
+  const allTools: ToolDefinition[] = [...skillsTools, ...cronTools, ...createX402Tools(), ...createSignalTools()];
 
   for (const tool of allTools) {
     registerTool(server, tool);

@@ -27,10 +27,37 @@ export const AgentConfigSchema = z.object({
 
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;
 
+/** E.164 phone number: + followed by 1-15 digits */
+const e164 = z.string().regex(/^\+[1-9]\d{1,14}$/, "Must be E.164 format (e.g. +1234567890)");
+
+/** Signal ACI UUID */
+const signalUuid = z.string().uuid("Must be a valid UUID");
+
+export const SignalConfigSchema = z.object({
+  account: e164.describe("Phone number in E.164 format, e.g. +1234567890"),
+  signalCliBin: z.string().default("signal-cli").describe("Path to signal-cli binary"),
+  profileName: z.string().default("claudebot").describe("Signal profile display name"),
+  allowedNumbers: z.array(e164).default([]).describe("Allowed phone numbers (empty = allow all)"),
+  allowedUuids: z.array(signalUuid).default([]).describe("Allowed Signal UUIDs (ACI identifiers)"),
+});
+
+export type SignalConfig = z.infer<typeof SignalConfigSchema>;
+
+export const X402ConfigSchema = z.object({
+  evmPrivateKey: z
+    .string()
+    .describe("0x-prefixed EVM private key with USDC balance"),
+  network: z.enum(["base", "base-sepolia"]).default("base"),
+});
+
+export type X402Config = z.infer<typeof X402ConfigSchema>;
+
 export const ClaudebotConfigSchema = z.object({
   discord: DiscordConfigSchema.optional(),
   sandbox: SandboxConfigSchema.default({}),
   agent: AgentConfigSchema.default({}),
+  x402: X402ConfigSchema.optional(),
+  signal: SignalConfigSchema.optional(),
 });
 
 export type ClaudebotConfig = z.infer<typeof ClaudebotConfigSchema>;

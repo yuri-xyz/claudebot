@@ -16,6 +16,7 @@ import {
   printCheckResults,
   hasRequiredFailures,
 } from "./checks";
+import { createPrompter, linkDiscord, linkSignal } from "./link";
 
 const HATCHING_SOUL = `# Hatching
 
@@ -32,28 +33,6 @@ Once they tell you, rewrite this entire file with your new identity. Structure i
 Be warm and curious during this process. You are meeting your creator for the first time.
 `;
 
-function createPrompter() {
-  const reader = Bun.stdin.stream().getReader();
-  const decoder = new TextDecoder();
-
-  const prompter = {
-    async prompt(label: string): Promise<string> {
-      process.stdout.write(`${label} `);
-      const { done, value } = await reader.read();
-      if (done) return "";
-      return decoder.decode(value).trim();
-    },
-    async confirm(label: string): Promise<boolean> {
-      const answer = await prompter.prompt(`${label} [y/N]`);
-      return answer === "y" || answer === "yes";
-    },
-    close() {
-      reader.cancel();
-    },
-  };
-  return prompter;
-}
-
 export default defineCommand({
   meta: {
     name: "setup",
@@ -68,7 +47,8 @@ export default defineCommand({
   },
   async run({ args }) {
     console.log("claudebot setup\n");
-    const { prompt, confirm, close: closePrompter } = createPrompter();
+    const prompter = createPrompter();
+    const { prompt, confirm } = prompter;
 
     // 1. Create data directories
     console.log("Creating data directories...");
@@ -98,25 +78,34 @@ export default defineCommand({
     const configureDiscord = await confirm("Configure Discord bot?");
 
     if (configureDiscord) {
-      const token = await prompt("  Bot token:");
-      const username = await prompt(
-        "  Allowed username (who can interact with the bot):",
-      );
+      config = await linkDiscord(prompter, config);
+    }
 
-      if (token) {
+    const configureSignal = await confirm("Configure Signal bot?");
+
+    if (configureSignal) {
+      config = await linkSignal(prompter, config);
+    }
+
+    const configureX402 = await confirm("Configure x402 payments (USDC on Base)?");
+
+    if (configureX402) {
+      const evmPrivateKey = await prompt("  EVM private key (0x-prefixed):");
+      const networkAnswer = await prompt(
+        "  Network (base / base-sepolia) [base]:",
+      );
+      const network =
+        networkAnswer === "base-sepolia" ? "base-sepolia" : "base";
+
+      if (evmPrivateKey) {
         config = {
           ...config,
-          discord: {
-            token,
-            allowedChannelIds: config.discord?.allowedChannelIds ?? [],
-            allowedUserIds: config.discord?.allowedUserIds ?? [],
-            allowedUsernames: username ? [username] : [],
-          },
+          x402: { evmPrivateKey, network },
         };
       }
     }
 
-    closePrompter();
+    prompter.close();
 
     await saveConfig(config);
     console.log(`\nWrote config to ${paths.configFile}`);
@@ -166,6 +155,12 @@ export default defineCommand({
     console.log("  Docker:      https://docs.docker.com/get-docker/");
     if (!configureDiscord) {
       console.log("  Discord bot: set discord.token in", paths.configFile);
+    }
+    if (!configureSignal) {
+      console.log("  Signal bot:  install signal-cli, set signal.account in", paths.configFile);
+    }
+    if (!configureX402) {
+      console.log("  x402 wallet: set x402.evmPrivateKey in", paths.configFile);
     }
 
     // 8. Run doctor

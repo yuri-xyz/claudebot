@@ -6,10 +6,13 @@
 
 import { join, resolve } from "path";
 import { paths } from "../config/paths";
+import { loadConfig } from "../config/config";
 
 export { runMcpServer } from "./server";
 export { skillsTools } from "./skills";
 export { cronTools } from "./cron";
+export { createX402Tools } from "./x402";
+export { createSignalTools } from "./signal";
 
 /**
  * Generates an MCP config file and returns the path.
@@ -17,6 +20,8 @@ export { cronTools } from "./cron";
  */
 export async function generateMcpConfig(
   discordChannelId?: string,
+  signalRecipient?: string,
+  signalAccount?: string,
 ): Promise<string> {
   const entrypoint = resolve(join(import.meta.dir, "..", "index.ts"));
   const bunPath = process.argv[0] ?? "bun";
@@ -24,6 +29,18 @@ export async function generateMcpConfig(
   const env: Record<string, string> = {};
   if (discordChannelId) {
     env.CLAUDEBOT_DISCORD_CHANNEL_ID = discordChannelId;
+  }
+  if (signalRecipient) {
+    env.CLAUDEBOT_SIGNAL_RECIPIENT = signalRecipient;
+  }
+  if (signalAccount) {
+    env.CLAUDEBOT_SIGNAL_ACCOUNT = signalAccount;
+  }
+
+  const userConfig = await loadConfig();
+  if (userConfig.x402?.evmPrivateKey) {
+    env.CLAUDEBOT_X402_EVM_PRIVATE_KEY = userConfig.x402.evmPrivateKey;
+    env.CLAUDEBOT_X402_NETWORK = userConfig.x402.network ?? "base";
   }
 
   const config = {

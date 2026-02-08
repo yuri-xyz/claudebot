@@ -11,6 +11,7 @@ import { loadConfig, ensureDataDirs } from "../config";
 import { createLogger } from "../lib/logger";
 import { errorMessage } from "../lib/errors";
 import { invokeAgent } from "../service/invokeAgent";
+import { paths } from "../config/paths";
 import type { IncomingMessage } from "../connectors/types";
 
 export default defineCommand({
@@ -53,7 +54,7 @@ async function runSinglePrompt(
       type: "cli",
       write: (text) => process.stdout.write(text),
     },
-    cwd: process.cwd(),
+    cwd: paths.sandboxDir,
   };
 
   try {
@@ -115,7 +116,7 @@ async function runInteractive(
           type: "cli",
           write: (text) => process.stdout.write(text),
         },
-        cwd: process.cwd(),
+        cwd: paths.sandboxDir,
         resumeSessionId: sessionId,
       };
 

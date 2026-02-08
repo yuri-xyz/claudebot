@@ -11,6 +11,10 @@ import type { DiscordConfig } from "../../config/types";
 import type { Logger } from "../../lib/logger";
 import { chunkMessage, formatError, formatThinking } from "./formatting";
 import { errorMessage } from "../../lib/errors";
+import { paths } from "../../config/paths";
+
+/** Maps Discord channel ID → Claude session ID for conversation continuity. */
+const sessions = new Map<string, string>();
 
 function isAllowed(
   config: DiscordConfig,
@@ -65,7 +69,8 @@ export async function handleMessage(
       channelId: msg.channelId,
       messageId: msg.id,
     },
-    cwd: process.cwd(),
+    cwd: paths.sandboxDir,
+    resumeSessionId: sessions.get(msg.channelId),
     images: images.length > 0 ? images : undefined,
     oversizedImageNames: oversized.length > 0 ? oversized : undefined,
     metadata: {
@@ -77,7 +82,8 @@ export async function handleMessage(
 
   logger.info(`Invoking agent for ${msg.author.username}...`);
   try {
-    const { response } = await invokeAgent(incoming);
+    const { response, sessionId } = await invokeAgent(incoming);
+    if (sessionId) sessions.set(msg.channelId, sessionId);
     logger.info(`Agent responded (${response.length} chars) to ${msg.author.username}`);
     const chunks = chunkMessage(response);
 
@@ -124,7 +130,8 @@ export async function handleSlashCommand(
         type: "discord",
         channelId: interaction.channelId,
       },
-      cwd: process.cwd(),
+      cwd: paths.sandboxDir,
+      resumeSessionId: sessions.get(interaction.channelId),
       metadata: {
         userId: interaction.user.id,
         username: interaction.user.username,
@@ -132,7 +139,8 @@ export async function handleSlashCommand(
     };
 
     try {
-      const { response } = await invokeAgent(incoming);
+      const { response, sessionId } = await invokeAgent(incoming);
+      if (sessionId) sessions.set(interaction.channelId, sessionId);
       const chunks = chunkMessage(response);
 
       await interaction.editReply(chunks[0]!);

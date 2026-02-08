@@ -180,6 +180,96 @@ export async function checkDiscord(): Promise<CheckResult> {
   }
 }
 
+export async function checkSignalCli(): Promise<CheckResult> {
+  let config;
+  try {
+    config = await loadConfig();
+  } catch {
+    return {
+      name: "Signal",
+      status: "warn",
+      message: "could not read config",
+      optional: true,
+    };
+  }
+
+  if (!config.signal?.account) {
+    return {
+      name: "Signal",
+      status: "warn",
+      message: "not configured (signal connector won't start)",
+      optional: true,
+    };
+  }
+
+  const bin = config.signal.signalCliBin;
+
+  let proc;
+  try {
+    proc = Bun.spawn([bin, "--version"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+  } catch {
+    return {
+      name: "Signal",
+      status: "fail",
+      message: `${bin} not found — install from https://github.com/AsamK/signal-cli`,
+      optional: true,
+    };
+  }
+
+  const output = await new Response(proc.stdout).text();
+  await proc.exited;
+
+  if (proc.exitCode !== 0) {
+    return {
+      name: "Signal",
+      status: "fail",
+      message: `${bin} exited with non-zero status`,
+      optional: true,
+    };
+  }
+
+  const version = output.trim();
+  const account = config.signal.account;
+
+  // Check whether the account is actually registered
+  const notRegistered = `signal-cli ${version} found, but account ${account} is not registered — run: ${bin} -a ${account} register`;
+  try {
+    const acctProc = Bun.spawn([bin, "-a", account, "listAccounts"], {
+      stdout: "pipe",
+      stderr: "pipe",
+    });
+    const acctOutput = await new Response(acctProc.stdout).text();
+    const acctStderr = await new Response(acctProc.stderr).text();
+    await acctProc.exited;
+
+    const isUnregistered =
+      acctProc.exitCode !== 0 ||
+      acctStderr.includes("No local users found") ||
+      !acctOutput.includes(account);
+
+    if (isUnregistered) {
+      return { name: "Signal", status: "fail", message: notRegistered, optional: true };
+    }
+  } catch {
+    return {
+      name: "Signal",
+      status: "warn",
+      message: `signal-cli ${version}, could not verify account registration`,
+      optional: true,
+    };
+  }
+
+  return {
+    name: "Signal",
+    status: "pass",
+    message: `signal-cli ${version}, account ${account} registered`,
+    optional: true,
+  };
+}
+
 export function checkApiKey(): CheckResult {
   if (process.env.ANTHROPIC_API_KEY) {
     return {
@@ -247,6 +337,7 @@ export async function runAllChecks(): Promise<CheckResult[]> {
     await checkConfigFile(),
     checkDataDirs(),
     await checkDiscord(),
+    await checkSignalCli(),
     checkApiKey(),
     await checkService(),
   ];

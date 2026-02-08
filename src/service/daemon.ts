@@ -9,9 +9,10 @@ import ms from "ms";
 import { loadConfig, ensureDataDirs } from "../config";
 import { createLogger } from "../lib/logger";
 import { DiscordConnector } from "../connectors/discord";
+import { SignalConnector } from "../connectors/signal";
 import type { Connector } from "../connectors/types";
 import { loadCronStorage, getJobsDue, executeCronJob } from "../cron";
-import type { SendToDiscordFn } from "../cron/executor";
+import type { DeliveryChannels } from "../cron/executor";
 import { invokeAgent } from "./invokeAgent";
 
 const CRON_CHECK_INTERVAL_MS = ms("1m");
@@ -24,7 +25,7 @@ export async function runDaemon(): Promise<void> {
   const config = await loadConfig();
 
   const connectors: Connector[] = [];
-  let sendToDiscord: SendToDiscordFn | undefined;
+  const delivery: DeliveryChannels = {};
 
   // Start Discord connector if configured
   if (config.discord) {
@@ -36,13 +37,30 @@ export async function runDaemon(): Promise<void> {
     try {
       await discord.start();
       connectors.push(discord);
-      sendToDiscord = (channelId, content) =>
+      delivery.discord = (channelId, content) =>
         discord.sendMessage(channelId, content);
     } catch (err) {
       logger.error("Failed to start Discord connector:", err);
     }
   } else {
     logger.warn("Discord not configured. Set discord.token in config.");
+  }
+
+  // Start Signal connector if configured
+  if (config.signal) {
+    const signal = new SignalConnector(
+      config.signal,
+      (msg) => invokeAgent(msg, config, logger),
+      logger,
+    );
+    try {
+      await signal.start();
+      connectors.push(signal);
+      delivery.signal = (recipient, content) =>
+        signal.sendMessage(recipient, content);
+    } catch (err) {
+      logger.error("Failed to start Signal connector:", err);
+    }
   }
 
   // Start cron scheduler
@@ -61,13 +79,19 @@ export async function runDaemon(): Promise<void> {
       const storage = await loadCronStorage();
       const dueJobs = getJobsDue(storage.jobs, now);
 
+      if (dueJobs.length > 0) {
+        logger.info(
+          `Cron: ${dueJobs.length} job(s) due: ${dueJobs.map((j) => j.name).join(", ")}`,
+        );
+      }
+
       for (const job of dueJobs) {
         // Fire and forget - don't block the scheduler
         executeCronJob(
           job,
           (msg) => invokeAgent(msg, config, logger),
           logger,
-          sendToDiscord,
+          delivery,
         ).catch((err) => {
           logger.error(`Cron job ${job.name} execution error:`, err);
         });

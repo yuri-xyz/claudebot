@@ -1,5 +1,12 @@
 import { z } from "zod";
 
+export const CronReplyToSchema = z.discriminatedUnion("type", [
+  z.object({ type: z.literal("discord"), channelId: z.string() }),
+  z.object({ type: z.literal("signal"), recipient: z.string() }),
+]);
+
+export type CronReplyTo = z.infer<typeof CronReplyToSchema>;
+
 export const CronJobSchema = z
   .object({
     id: z.string(),
@@ -14,18 +21,29 @@ export const CronJobSchema = z
     enabled: z.boolean().default(true),
     maxTurns: z.number().default(50),
     maxBudgetUsd: z.number().optional(),
-    /** Discord channel ID to send results to */
-    discordChannelId: z.string().optional(),
+    /** Where to deliver the result (omit for silent/background execution) */
+    replyTo: CronReplyToSchema.optional(),
     /** Auto-remove after firing (used with runAt) */
     oneShot: z.boolean().default(false),
     createdAt: z.string(),
     lastRunAt: z.string().optional(),
+
+    // Legacy fields — migrated to replyTo on read
+    discordChannelId: z.string().optional(),
+    signalRecipient: z.string().optional(),
   })
   .refine((job) => job.schedule || job.runAt, {
     message: "Either schedule or runAt must be provided",
+  })
+  .transform(({ discordChannelId, signalRecipient, ...rest }) => {
+    const replyTo = rest.replyTo
+      ?? (discordChannelId ? { type: "discord" as const, channelId: discordChannelId }
+        : signalRecipient ? { type: "signal" as const, recipient: signalRecipient }
+        : undefined);
+    return { ...rest, replyTo };
   });
 
-export type CronJob = z.infer<typeof CronJobSchema>;
+export type CronJob = z.output<typeof CronJobSchema>;
 
 export const CronStorageSchema = z.object({
   jobs: z.array(CronJobSchema),

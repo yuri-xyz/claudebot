@@ -145,7 +145,7 @@ export class ClaudeCodeAdapter {
   async start(config: ClaudeCodeRunnerConfig): Promise<SpawnResult> {
     const processId = `claude-code-${++this.processIdCounter}`;
     const executable = config.executablePath ?? "claude";
-    const args = buildArgs(config, DEFAULT_CLAUDE_CODE_MODEL);
+    const args = buildArgs(config, config.model ?? DEFAULT_CLAUDE_CODE_MODEL);
 
     this.logger.debug(
       `Spawning Claude Code process ${processId}: ${executable} ${args.join(" ")}`,

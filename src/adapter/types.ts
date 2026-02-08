@@ -29,6 +29,8 @@ export type ClaudeCodeRunnerConfig = {
   /** Path to MCP config JSON to pass via --mcp-config */
   mcpConfigPath?: string;
   systemPrompt?: string;
+  /** Model override (e.g. "opus", "sonnet"). Defaults to the config default. */
+  model?: string;
 };
 
 /**

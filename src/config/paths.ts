@@ -8,6 +8,7 @@ export const paths = {
   dataDir: join(home, ".claudebot"),
   configFile: join(home, ".claudebot", "config.json"),
   soulFile: join(home, ".claudebot", "SOUL.md"),
+  memoriesFile: join(home, ".claudebot", "memories.md"),
   cronsFile: join(home, ".claudebot", "crons.json"),
   logsDir: join(home, ".claudebot", "logs"),
   mcpConfigFile: join(home, ".claudebot", "mcp-config.json"),
@@ -16,6 +17,13 @@ export const paths = {
   // Service logs
   serviceStdoutLog: join(home, ".claudebot", "logs", "service-stdout.log"),
   serviceStderrLog: join(home, ".claudebot", "logs", "service-stderr.log"),
+
+  // Agent working directory
+  sandboxDir: join(home, ".claudebot", "sandbox"),
+  downloadsDir: join(home, ".claudebot", "sandbox", "downloads"),
+
+  // IPC files
+  signalProfileUpdateFile: join(home, ".claudebot", "signal-profile-update.json"),
 
   // Skills storage (managed by claudebot, served via MCP tools)
   skillsDir: join(home, ".claudebot", "skills"),
