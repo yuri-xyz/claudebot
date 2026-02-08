@@ -15,6 +15,7 @@ const main = defineCommand({
     doctor: () => import("./cli/doctor").then((m) => m.default),
     setup: () => import("./cli/setup").then((m) => m.default),
     replace: () => import("./cli/replace").then((m) => m.default),
+    soul: () => import("./cli/soul").then((m) => m.default),
     daemon: () =>
       import("./service/daemon").then((m) =>
         defineCommand({

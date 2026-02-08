@@ -25,7 +25,7 @@ const cronIdShape = {
 
 export const cronListTool: ToolDefinition = {
   name: "claudebot_cron_list",
-  description: "List all scheduled cron jobs",
+  description: "List all scheduled cron jobs and one-off reminders",
   inputShape: {},
   async handler() {
     const jobs = await listCronJobs();
@@ -33,10 +33,15 @@ export const cronListTool: ToolDefinition = {
       return "No cron jobs configured.";
     }
     return jobs
-      .map(
-        (j) =>
-          `- [${j.enabled ? "enabled" : "disabled"}] ${j.name} (${j.id}): "${j.schedule}" -> ${j.prompt.slice(0, 80)}${j.prompt.length > 80 ? "..." : ""}`,
-      )
+      .map((j) => {
+        const tags = [
+          j.enabled ? "enabled" : "disabled",
+          ...(j.oneShot ? ["one-shot"] : []),
+          ...(j.discordChannelId ? ["→Discord"] : []),
+        ];
+        const timing = j.runAt ?? j.schedule ?? "no schedule";
+        return `- [${tags.join(", ")}] ${j.name} (${j.id}): "${timing}" -> ${j.prompt.slice(0, 80)}${j.prompt.length > 80 ? "..." : ""}`;
+      })
       .join("\n");
   },
 };
@@ -44,35 +49,73 @@ export const cronListTool: ToolDefinition = {
 export const cronCreateTool: ToolDefinition = {
   name: "claudebot_cron_create",
   description:
-    "Create a new cron job to invoke Claude on a schedule. Schedule uses standard 5-field cron format: minute hour day-of-month month day-of-week.",
+    "Create a cron job or one-off reminder. Provide either `schedule` (5-field cron) or `runAt` (ISO timestamp), not both. Use `replyToDiscord: true` to send the result back to the current Discord channel.",
   inputShape: {
-    name: z.string().describe("Human-readable name for the cron job"),
+    name: z.string().describe("Human-readable name for the job"),
     schedule: z
       .string()
+      .optional()
       .describe(
         'Cron schedule (5-field format, e.g. "0 9 * * *" for daily at 9am)',
       ),
+    runAt: z
+      .string()
+      .optional()
+      .describe("ISO timestamp for one-off execution (e.g. 2025-06-15T14:00:00Z)"),
     prompt: z
       .string()
       .describe("The prompt to send to Claude when this job fires"),
     cwd: z.string().describe("Working directory for the Claude session"),
     skillName: z.string().optional().describe("Optional skill name to invoke"),
+    replyToDiscord: z
+      .boolean()
+      .optional()
+      .describe(
+        "If true, sends the result to the Discord channel this message originated from",
+      ),
   },
-  async handler({ name, schedule, prompt, cwd, skillName }) {
+  async handler({ name, schedule, runAt, prompt, cwd, skillName, replyToDiscord }) {
+    if (!schedule && !runAt) {
+      return "Error: Provide either `schedule` or `runAt`.";
+    }
+    if (schedule && runAt) {
+      return "Error: Provide only one of `schedule` or `runAt`, not both.";
+    }
+
+    const discordChannelId =
+      replyToDiscord ? process.env.CLAUDEBOT_DISCORD_CHANNEL_ID : undefined;
+    if (replyToDiscord && !discordChannelId) {
+      return "Error: No Discord channel context available. This only works when invoked from Discord.";
+    }
+
+    const isOneShot = !!runAt;
+
     const job: CronJob = {
       id: generateId(),
       name,
-      schedule,
+      ...(schedule ? { schedule } : {}),
+      ...(runAt ? { runAt } : {}),
       prompt,
       cwd,
       skillName,
       enabled: true,
       maxTurns: 50,
+      oneShot: isOneShot,
+      ...(discordChannelId ? { discordChannelId } : {}),
       createdAt: new Date().toISOString(),
     };
 
     await addCronJob(job);
-    return `Created cron job "${job.name}" (${job.id}) with schedule "${job.schedule}"`;
+
+    const timing = runAt ? `run at ${runAt}` : `schedule "${schedule}"`;
+    const extras = [
+      isOneShot ? "one-shot" : null,
+      discordChannelId ? "reply to Discord" : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
+
+    return `Created job "${job.name}" (${job.id}) — ${timing}${extras ? ` [${extras}]` : ""}`;
   },
 };
 

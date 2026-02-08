@@ -1,5 +1,5 @@
 import { describe, test, expect } from "bun:test";
-import { matchesCron, getJobsDue } from "../../src/cron/scheduler";
+import { matchesCron, getJobsDue, isRunAtDue } from "../../src/cron/scheduler";
 import type { CronJob } from "../../src/cron/types";
 
 describe("matchesCron", () => {
@@ -61,6 +61,32 @@ describe("matchesCron", () => {
   });
 });
 
+describe("isRunAtDue", () => {
+  test("returns true when timestamp is in the past within grace window", () => {
+    const now = new Date("2024-06-15T14:00:30Z");
+    expect(isRunAtDue("2024-06-15T14:00:00Z", now)).toBe(true);
+  });
+
+  test("returns true when timestamp matches exactly", () => {
+    const now = new Date("2024-06-15T14:00:00Z");
+    expect(isRunAtDue("2024-06-15T14:00:00Z", now)).toBe(true);
+  });
+
+  test("returns false when timestamp is in the future", () => {
+    const now = new Date("2024-06-15T13:59:00Z");
+    expect(isRunAtDue("2024-06-15T14:00:00Z", now)).toBe(false);
+  });
+
+  test("returns false when timestamp is more than 60s in the past", () => {
+    const now = new Date("2024-06-15T14:01:01Z");
+    expect(isRunAtDue("2024-06-15T14:00:00Z", now)).toBe(false);
+  });
+
+  test("returns false for invalid timestamp", () => {
+    expect(isRunAtDue("not-a-date", new Date())).toBe(false);
+  });
+});
+
 describe("getJobsDue", () => {
   const baseJob: CronJob = {
     id: "test-1",
@@ -70,6 +96,7 @@ describe("getJobsDue", () => {
     cwd: "/tmp",
     enabled: true,
     maxTurns: 50,
+    oneShot: false,
     createdAt: "2024-01-01T00:00:00Z",
   };
 
@@ -91,6 +118,33 @@ describe("getJobsDue", () => {
     const date = new Date(2024, 0, 15, 10, 0);
     const jobs = [baseJob];
     const due = getJobsDue(jobs, date);
+    expect(due).toHaveLength(0);
+  });
+
+  test("returns runAt jobs that are due", () => {
+    const now = new Date("2024-06-15T14:00:10Z");
+    const runAtJob: CronJob = {
+      ...baseJob,
+      id: "test-runAt",
+      schedule: undefined,
+      runAt: "2024-06-15T14:00:00Z",
+      oneShot: true,
+    };
+    const due = getJobsDue([runAtJob], now);
+    expect(due).toHaveLength(1);
+    expect(due[0]!.id).toBe("test-runAt");
+  });
+
+  test("skips runAt jobs that are not yet due", () => {
+    const now = new Date("2024-06-15T13:59:00Z");
+    const runAtJob: CronJob = {
+      ...baseJob,
+      id: "test-runAt",
+      schedule: undefined,
+      runAt: "2024-06-15T14:00:00Z",
+      oneShot: true,
+    };
+    const due = getJobsDue([runAtJob], now);
     expect(due).toHaveLength(0);
   });
 });

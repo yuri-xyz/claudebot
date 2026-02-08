@@ -11,6 +11,7 @@ import { createLogger } from "../lib/logger";
 import { DiscordConnector } from "../connectors/discord";
 import type { Connector } from "../connectors/types";
 import { loadCronStorage, getJobsDue, executeCronJob } from "../cron";
+import type { SendToDiscordFn } from "../cron/executor";
 import { invokeAgent } from "./invokeAgent";
 
 const CRON_CHECK_INTERVAL_MS = ms("1m");
@@ -23,6 +24,7 @@ export async function runDaemon(): Promise<void> {
   const config = await loadConfig();
 
   const connectors: Connector[] = [];
+  let sendToDiscord: SendToDiscordFn | undefined;
 
   // Start Discord connector if configured
   if (config.discord) {
@@ -34,6 +36,8 @@ export async function runDaemon(): Promise<void> {
     try {
       await discord.start();
       connectors.push(discord);
+      sendToDiscord = (channelId, content) =>
+        discord.sendMessage(channelId, content);
     } catch (err) {
       logger.error("Failed to start Discord connector:", err);
     }
@@ -63,6 +67,7 @@ export async function runDaemon(): Promise<void> {
           job,
           (msg) => invokeAgent(msg, config, logger),
           logger,
+          sendToDiscord,
         ).catch((err) => {
           logger.error(`Cron job ${job.name} execution error:`, err);
         });

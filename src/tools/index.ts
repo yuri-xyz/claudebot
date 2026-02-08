@@ -15,15 +15,23 @@ export { cronTools } from "./cron";
  * Generates an MCP config file and returns the path.
  * Claude Code uses this with --mcp-config to know about our tools.
  */
-export async function generateMcpConfig(): Promise<string> {
+export async function generateMcpConfig(
+  discordChannelId?: string,
+): Promise<string> {
   const entrypoint = resolve(join(import.meta.dir, "..", "index.ts"));
   const bunPath = process.argv[0] ?? "bun";
+
+  const env: Record<string, string> = {};
+  if (discordChannelId) {
+    env.CLAUDEBOT_DISCORD_CHANNEL_ID = discordChannelId;
+  }
 
   const config = {
     mcpServers: {
       "claudebot-tools": {
         command: bunPath,
         args: ["run", entrypoint, "mcp-server"],
+        ...(Object.keys(env).length > 0 ? { env } : {}),
       },
     },
   };

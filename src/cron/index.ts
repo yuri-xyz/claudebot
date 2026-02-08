@@ -7,7 +7,7 @@ export {
   listCronJobs,
   getCronJob,
 } from "./storage";
-export { matchesCron, getJobsDue } from "./scheduler";
+export { matchesCron, getJobsDue, isRunAtDue } from "./scheduler";
 export { executeCronJob } from "./executor";
 export { CronJobSchema, CronStorageSchema } from "./types";
 export type { CronJob, CronStorage } from "./types";

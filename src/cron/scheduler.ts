@@ -86,10 +86,23 @@ function parseRange(expr: string): [number, number] | null {
 }
 
 /**
+ * Returns true if a runAt timestamp is due (past, within a 60s grace window).
+ */
+export function isRunAtDue(runAt: string, now: Date): boolean {
+  const target = new Date(runAt).getTime();
+  if (isNaN(target)) return false;
+  const diff = now.getTime() - target;
+  return diff >= 0 && diff < 60_000;
+}
+
+/**
  * Gets jobs that should run at the given time.
  */
 export function getJobsDue(jobs: CronJob[], now: Date): CronJob[] {
-  return jobs.filter(
-    (job) => job.enabled && matchesCron(job.schedule, now),
-  );
+  return jobs.filter((job) => {
+    if (!job.enabled) return false;
+    if (job.runAt) return isRunAtDue(job.runAt, now);
+    if (job.schedule) return matchesCron(job.schedule, now);
+    return false;
+  });
 }

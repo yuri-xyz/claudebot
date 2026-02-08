@@ -13,6 +13,7 @@ import {
 import type { Connector, InvokeAgentFn } from "../types";
 import type { DiscordConfig } from "../../config/types";
 import { handleMessage, handleSlashCommand } from "./handlers";
+import { chunkMessage } from "./formatting";
 import type { Logger } from "../../lib/logger";
 
 export class DiscordConnector implements Connector {
@@ -85,6 +86,17 @@ export class DiscordConnector implements Connector {
 
   isRunning(): boolean {
     return this.running;
+  }
+
+  async sendMessage(channelId: string, content: string): Promise<void> {
+    const channel = await this.client.channels.fetch(channelId);
+    if (!channel || !("send" in channel)) {
+      throw new Error(`Channel ${channelId} not found or not text-based`);
+    }
+    const chunks = chunkMessage(content);
+    for (const chunk of chunks) {
+      await channel.send(chunk);
+    }
   }
 
   private enqueue(fn: () => Promise<void>): void {

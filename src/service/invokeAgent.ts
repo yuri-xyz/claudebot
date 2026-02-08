@@ -25,6 +25,7 @@ import type { ClaudebotConfig } from "../config/types";
 import type { Logger } from "../lib/logger";
 import { generateMcpConfig } from "../tools";
 import { paths } from "../config/paths";
+import { SOUL_INSTRUCTIONS, DISCORD_FORMATTING, discordReminders } from "./promptParts";
 
 /**
  * Invokes Claude Code with a message and returns the response with session metadata.
@@ -38,7 +39,9 @@ export async function invokeAgent(
   const sandboxConfig = config.sandbox;
   const spawner = await resolveSpawner(sandboxConfig, logger);
 
-  const mcpConfigPath = await generateMcpConfig();
+  const discordChannelId =
+    message.replyTo.type === "discord" ? message.replyTo.channelId : undefined;
+  const mcpConfigPath = await generateMcpConfig(discordChannelId);
   const systemPrompt = await buildSystemPrompt(config, message.source);
 
   const adapter = new ClaudeCodeAdapter({
@@ -123,11 +126,10 @@ async function buildSystemPrompt(
   config: ClaudebotConfig,
   source: IncomingMessage["source"],
 ): Promise<string> {
-  const soulPath = paths.soulFile;
   let soulContent: string | undefined;
 
   try {
-    const file = Bun.file(soulPath);
+    const file = Bun.file(paths.soulFile);
     if (await file.exists()) {
       soulContent = (await file.text()).trim();
     }
@@ -135,35 +137,11 @@ async function buildSystemPrompt(
     // SOUL.md doesn't exist or can't be read, that's fine
   }
 
-  const parts: string[] = [];
-
-  if (soulContent) {
-    parts.push(soulContent);
-  } else if (config.agent.systemPrompt) {
-    parts.push(config.agent.systemPrompt);
-  }
-
-  parts.push(
-    `Your persona is defined by your SOUL file at: ${soulPath}`,
-    `When asked to change your name, personality, traits, or identity, edit that file. Changes take effect on the next message.
-
-Here's a suggested template structure for the SOUL file (use what fits, skip what doesn't):
-
-# Name
-# Background — your origin story, role, purpose
-# Personality — tone, demeanor, how you carry yourself
-# Traits — specific behaviors, quirks, habits
-# Voice — how you talk (casual, formal, poetic, etc.)
-# Interests — topics you enjoy or gravitate toward
-# Preferences — your opinions, favorites, pet peeves
-# Memories — things you've learned about your creator or past conversations worth remembering`,
-  );
-
-  if (source === "discord") {
-    parts.push(
-      "You are responding through Discord. Format all output for Discord: use Discord-flavored markdown (** for bold, * for italic, ``` for code blocks, > for quotes, - for lists). Keep responses concise. Avoid large headers (#) — prefer bold text instead. Do not use HTML.",
-    );
-  }
+  const parts: string[] = [
+    soulContent ?? config.agent.systemPrompt,
+    SOUL_INSTRUCTIONS,
+    ...(source === "discord" ? [DISCORD_FORMATTING, discordReminders()] : []),
+  ];
 
   return parts.join("\n\n");
 }
