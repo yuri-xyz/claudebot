@@ -4,7 +4,7 @@
  * Generates MCP config JSON for passing to Claude Code via --mcp-config.
  */
 
-import { join } from "path";
+import { join, resolve } from "path";
 import { paths } from "../config/paths";
 
 export { runMcpServer } from "./server";
@@ -16,14 +16,14 @@ export { cronTools } from "./cron";
  * Claude Code uses this with --mcp-config to know about our tools.
  */
 export async function generateMcpConfig(): Promise<string> {
-  // The MCP server runs as a bun process
-  const serverPath = join(import.meta.dir, "server.ts");
+  const entrypoint = resolve(join(import.meta.dir, "..", "index.ts"));
+  const bunPath = process.argv[0] ?? "bun";
 
   const config = {
     mcpServers: {
       "claudebot-tools": {
-        command: "bun",
-        args: ["run", serverPath],
+        command: bunPath,
+        args: ["run", entrypoint, "mcp-server"],
       },
     },
   };

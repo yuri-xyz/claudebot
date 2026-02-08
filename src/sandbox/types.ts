@@ -20,3 +20,16 @@ export interface ExecResult {
   stdout: string;
   stderr: string;
 }
+
+/** Build a SandboxConfig from the user config's sandbox section and a resolved runtime. */
+export function buildSandboxConfig(
+  sandboxSettings: { containerName: string; image: string; mountPaths: string[] },
+  runtime: ContainerRuntime,
+): SandboxConfig {
+  return {
+    runtime,
+    containerName: sandboxSettings.containerName,
+    image: sandboxSettings.image,
+    mountPaths: sandboxSettings.mountPaths,
+  };
+}

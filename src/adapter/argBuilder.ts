@@ -46,7 +46,13 @@ export function buildArgs(
   }
 
   if (config.mcpConfigPath) {
-    args.push("--mcp-config", config.mcpConfigPath);
+    args.push("--strict-mcp-config", "--mcp-config", config.mcpConfigPath);
+  }
+
+  args.push("--disable-slash-commands");
+
+  if (config.systemPrompt) {
+    args.push("--system-prompt", config.systemPrompt);
   }
 
   return args;

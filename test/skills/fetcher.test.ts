@@ -17,7 +17,7 @@ describe("resolveSkillSource", () => {
 
     expect(source.type).toBe("github");
     expect(source.rawUrl).toBe(
-      "https://raw.githubusercontent.com/vercel-labs/skills/main/find-skills/SKILL.md",
+      "https://raw.githubusercontent.com/vercel-labs/skills/main/skills/find-skills/SKILL.md",
     );
   });
 
@@ -39,7 +39,7 @@ describe("resolveSkillSource", () => {
     const source = resolveSkillSource("owner/repo/path/to/deep/skill");
 
     expect(source.rawUrl).toBe(
-      "https://raw.githubusercontent.com/owner/repo/main/path/to/deep/skill/SKILL.md",
+      "https://raw.githubusercontent.com/owner/repo/main/skills/path/to/deep/skill/SKILL.md",
     );
   });
 });

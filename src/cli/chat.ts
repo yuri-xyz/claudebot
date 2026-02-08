@@ -4,7 +4,9 @@
  * Interactive terminal chat with Claude Code.
  */
 
+import ms from "ms";
 import { defineCommand } from "citty";
+import { render as renderMd } from "markdansi";
 import { loadConfig, ensureDataDirs } from "../config";
 import { createLogger } from "../lib/logger";
 import { errorMessage } from "../lib/errors";
@@ -55,8 +57,12 @@ async function runSinglePrompt(
   };
 
   try {
-    const { response } = await invokeAgent(message, config, logger);
-    console.log(response);
+    const { response } = await invokeAgent(message, config, logger, {
+      onToolUse: (name) => {
+        console.log(formatToolUse(name));
+      },
+    });
+    console.log(formatResponse(response));
   } catch (err) {
     console.error(
       "Error:",
@@ -75,7 +81,7 @@ async function runInteractive(
   const reader = Bun.stdin.stream().getReader();
   const decoder = new TextDecoder();
 
-  process.stdout.write("> ");
+  process.stdout.write(INPUT_PROMPT);
 
   let buffer = "";
   let sessionId: string | undefined;
@@ -93,7 +99,7 @@ async function runInteractive(
       buffer = buffer.slice(newlineIdx + 1);
 
       if (!line) {
-        process.stdout.write("> ");
+        process.stdout.write(INPUT_PROMPT);
         continue;
       }
 
@@ -113,18 +119,96 @@ async function runInteractive(
         resumeSessionId: sessionId,
       };
 
+      setEcho(false);
+      const spinner = createSpinner();
+      spinner.start();
       try {
-        const result = await invokeAgent(message, config, logger);
+        const result = await invokeAgent(message, config, logger, {
+          onToolUse: (name) => {
+            spinner.clear();
+            console.log(formatToolUse(name));
+            spinner.start();
+          },
+        });
+        spinner.stop();
         sessionId = result.sessionId;
-        console.log(`\n${result.response}\n`);
+        console.log(`\n${formatResponse(result.response)}\n`);
       } catch (err) {
+        spinner.stop();
         console.error(
           "Error:",
           errorMessage(err),
         );
+      } finally {
+        setEcho(true);
       }
 
-      process.stdout.write("> ");
+      // Discard any input typed while echo was off
+      buffer = "";
+
+      process.stdout.write(INPUT_PROMPT);
     }
   }
+}
+
+const INPUT_PROMPT = "➜ ";
+const RESPONSE_PREFIX = "⏺ ";
+const CONTINUATION_INDENT = "  ";
+const TOOL_PREFIX = "  ⚡ ";
+
+const SPINNER_FRAMES = [".", "..", "..."];
+const SPINNER_INTERVAL_MS = ms("400ms");
+const CLEAR_LINE = "\x1B[2K\r";
+
+function createSpinner() {
+  let frame = 0;
+  let timer: ReturnType<typeof setInterval> | undefined;
+
+  return {
+    start() {
+      this.clear();
+      process.stdout.write(CONTINUATION_INDENT + SPINNER_FRAMES[0]!);
+      frame = 0;
+      timer = setInterval(() => {
+        frame = (frame + 1) % SPINNER_FRAMES.length;
+        process.stdout.write(
+          CLEAR_LINE + CONTINUATION_INDENT + SPINNER_FRAMES[frame]!,
+        );
+      }, SPINNER_INTERVAL_MS);
+    },
+    clear() {
+      if (timer) {
+        clearInterval(timer);
+        timer = undefined;
+      }
+      process.stdout.write(CLEAR_LINE);
+    },
+    stop() {
+      this.clear();
+    },
+  };
+}
+
+function setEcho(enabled: boolean): void {
+  try {
+    Bun.spawnSync(["stty", enabled ? "echo" : "-echo"], {
+      stdin: "inherit",
+    });
+  } catch {
+    // Non-TTY environment, ignore
+  }
+}
+
+function formatToolUse(toolName: string): string {
+  return `${TOOL_PREFIX}${toolName}`;
+}
+
+function formatResponse(text: string): string {
+  const rendered = renderMd(text).trimEnd();
+  const lines = rendered.split("\n");
+  return lines
+    .map((line, i) =>
+      i === 0 ? RESPONSE_PREFIX + line : CONTINUATION_INDENT + line,
+    )
+    .join("\n");
 }

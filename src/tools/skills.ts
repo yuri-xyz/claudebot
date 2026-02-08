@@ -11,6 +11,7 @@ import {
   listSkills,
   installSkill,
   removeSkill,
+  searchSkills,
 } from "../skills";
 
 export const skillsListTool: ToolDefinition = {
@@ -60,8 +61,30 @@ export const skillsRemoveTool: ToolDefinition = {
   },
 };
 
+export const skillsSearchTool: ToolDefinition = {
+  name: "claudebot_skills_search",
+  description:
+    "Search for skills on skills.sh. Returns the top 20 matches with install counts.",
+  inputShape: {
+    query: z.string().describe("Search query (e.g. 'typescript', 'react', 'testing')"),
+  },
+  async handler({ query }) {
+    const results = await searchSkills(query);
+    if (results.length === 0) {
+      return "No skills found.";
+    }
+    return results
+      .map(
+        (s) =>
+          `- ${s.name} (${s.installs.toLocaleString()} installs)\n  Install: ${s.source}/${s.skillId}`,
+      )
+      .join("\n");
+  },
+};
+
 export const skillsTools: ToolDefinition[] = [
   skillsListTool,
   skillsInstallTool,
   skillsRemoveTool,
+  skillsSearchTool,
 ];

@@ -8,14 +8,15 @@ import type { ServiceStatus } from "./types";
 
 const SERVICE_NAME = "claudebot";
 
-function generateUnit(executablePath: string): string {
+function generateUnit(programArgs: string[]): string {
+  const execStart = programArgs.join(" ");
   return `[Unit]
 Description=Claudebot Personal AI Bot
 After=network.target
 
 [Service]
 Type=simple
-ExecStart=${executablePath} daemon
+ExecStart=${execStart}
 Restart=always
 RestartSec=5
 Environment=PATH=/usr/local/bin:/usr/bin:/bin:${process.env.HOME}/.bun/bin:${process.env.HOME}/.local/bin
@@ -26,12 +27,12 @@ WantedBy=default.target
 }
 
 export async function installSystemd(
-  executablePath: string,
+  programArgs: string[],
 ): Promise<void> {
   await mkdir(paths.systemdUserDir, { recursive: true });
   await mkdir(paths.logsDir, { recursive: true });
 
-  const unit = generateUnit(executablePath);
+  const unit = generateUnit(programArgs);
   await Bun.write(paths.serviceUnit, unit);
 
   // Reload systemd user daemon

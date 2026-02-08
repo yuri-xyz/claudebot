@@ -7,15 +7,18 @@ export const paths = {
   // claudebot data
   dataDir: join(home, ".claudebot"),
   configFile: join(home, ".claudebot", "config.json"),
+  soulFile: join(home, ".claudebot", "SOUL.md"),
   cronsFile: join(home, ".claudebot", "crons.json"),
   logsDir: join(home, ".claudebot", "logs"),
   mcpConfigFile: join(home, ".claudebot", "mcp-config.json"),
   pidFile: join(home, ".claudebot", "daemon.pid"),
 
-  // Claude ecosystem
-  claudeDir: join(home, ".claude"),
-  skillsDir: join(home, ".claude", "skills"),
-  claudeConfigDir: join(home, ".claude"),
+  // Service logs
+  serviceStdoutLog: join(home, ".claudebot", "logs", "service-stdout.log"),
+  serviceStderrLog: join(home, ".claudebot", "logs", "service-stderr.log"),
+
+  // Skills storage (managed by claudebot, served via MCP tools)
+  skillsDir: join(home, ".claudebot", "skills"),
 
   // Service (macOS)
   launchAgents: join(home, "Library", "LaunchAgents"),

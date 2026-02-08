@@ -71,7 +71,7 @@ describe("buildArgs", () => {
     expect(args).toContain("5");
   });
 
-  test("includes MCP config path", () => {
+  test("includes MCP config path with strict mode", () => {
     const config: ClaudeCodeRunnerConfig = {
       prompt: "test",
       cwd: "/tmp",
@@ -80,8 +80,20 @@ describe("buildArgs", () => {
 
     const args = buildArgs(config);
 
+    expect(args).toContain("--strict-mcp-config");
     expect(args).toContain("--mcp-config");
     expect(args).toContain("/path/to/mcp.json");
+  });
+
+  test("always includes disable-slash-commands", () => {
+    const config: ClaudeCodeRunnerConfig = {
+      prompt: "test",
+      cwd: "/tmp",
+    };
+
+    const args = buildArgs(config);
+
+    expect(args).toContain("--disable-slash-commands");
   });
 
   test("includes allowed tools", () => {

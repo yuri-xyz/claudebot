@@ -4,9 +4,11 @@
  * Routes Discord messages/interactions to the Claude agent.
  */
 
+import ms from "ms";
 import type { Message, ChatInputCommandInteraction } from "discord.js";
 import type { InvokeAgentFn, IncomingMessage } from "../types";
 import type { DiscordConfig } from "../../config/types";
+import type { Logger } from "../../lib/logger";
 import { chunkMessage, formatError, formatThinking } from "./formatting";
 import { errorMessage } from "../../lib/errors";
 
@@ -14,10 +16,14 @@ function isAllowed(
   config: DiscordConfig,
   userId: string,
   channelId: string,
+  username?: string,
 ): boolean {
+  const hasUserFilter =
+    config.allowedUserIds.length > 0 || config.allowedUsernames.length > 0;
   const userOk =
-    config.allowedUserIds.length === 0 ||
-    config.allowedUserIds.includes(userId);
+    !hasUserFilter ||
+    config.allowedUserIds.includes(userId) ||
+    (username !== undefined && config.allowedUsernames.includes(username));
   const channelOk =
     config.allowedChannelIds.length === 0 ||
     config.allowedChannelIds.includes(channelId);
@@ -28,11 +34,20 @@ export async function handleMessage(
   msg: Message,
   config: DiscordConfig,
   invokeAgent: InvokeAgentFn,
+  logger: Logger,
 ): Promise<void> {
   if (msg.author.bot) return;
   if (!msg.content.trim()) return;
 
-  if (!isAllowed(config, msg.author.id, msg.channelId)) return;
+  const isDM = !msg.guildId;
+  logger.info(
+    `Message from ${msg.author.username} (${msg.author.id}) in ${isDM ? "DM" : `guild ${msg.guildId} #${msg.channelId}`}: ${msg.content.slice(0, 100)}`,
+  );
+
+  if (!isAllowed(config, msg.author.id, msg.channelId, msg.author.username)) {
+    logger.info(`Rejected: user not allowed`);
+    return;
+  }
 
   // Keep typing indicator alive until response is ready
   const typingInterval =
@@ -56,15 +71,18 @@ export async function handleMessage(
     },
   };
 
+  logger.info(`Invoking agent for ${msg.author.username}...`);
   try {
     const { response } = await invokeAgent(incoming);
+    logger.info(`Agent responded (${response.length} chars) to ${msg.author.username}`);
     const chunks = chunkMessage(response);
 
     for (const chunk of chunks) {
-      await msg.reply(chunk);
+      await msg.reply({ content: chunk, allowedMentions: { repliedUser: false } });
     }
   } catch (err) {
-    await msg.reply(formatError(errorMessage(err)));
+    logger.error(`Agent error for ${msg.author.username}: ${errorMessage(err)}`);
+    await msg.reply({ content: formatError(errorMessage(err)), allowedMentions: { repliedUser: false } });
   } finally {
     if (typingInterval) clearInterval(typingInterval);
   }
@@ -75,7 +93,14 @@ export async function handleSlashCommand(
   config: DiscordConfig,
   invokeAgent: InvokeAgentFn,
 ): Promise<void> {
-  if (!isAllowed(config, interaction.user.id, interaction.channelId)) {
+  if (
+    !isAllowed(
+      config,
+      interaction.user.id,
+      interaction.channelId,
+      interaction.user.username,
+    )
+  ) {
     await interaction.reply({
       content: "You are not authorized to use this bot.",
       ephemeral: true,
@@ -120,7 +145,7 @@ export async function handleSlashCommand(
   }
 }
 
-const TYPING_REFRESH_MS = 7_000;
+const TYPING_REFRESH_MS = ms("7s");
 
 function startTypingInterval(
   channel: { sendTyping(): Promise<void> },

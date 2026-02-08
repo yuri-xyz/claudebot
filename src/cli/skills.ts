@@ -6,6 +6,7 @@ import { defineCommand } from "citty";
 import {
   listSkills,
   installSkill,
+  searchSkills,
 } from "../skills";
 import { ensureDataDirs } from "../config";
 import { errorMessage } from "../lib/errors";
@@ -74,6 +75,43 @@ export default defineCommand({
             "Error:",
             errorMessage(err),
           );
+          process.exit(1);
+        }
+      },
+    }),
+
+    search: defineCommand({
+      meta: {
+        name: "search",
+        description: "Search for skills on skills.sh",
+      },
+      args: {
+        query: {
+          type: "positional",
+          description: "Search query",
+          required: true,
+        },
+      },
+      async run({ args }) {
+        const query = args.query as string;
+        console.log(`Searching skills.sh for "${query}"...\n`);
+        try {
+          const results = await searchSkills(query);
+          if (results.length === 0) {
+            console.log("No skills found.");
+            return;
+          }
+          for (const skill of results) {
+            const installs = skill.installs.toLocaleString();
+            console.log(`  ${skill.name}`);
+            console.log(`    ${skill.source}/${skill.skillId}  (${installs} installs)`);
+            console.log();
+          }
+          console.log(
+            'Install with: claudebot skills get <source/skill-name>',
+          );
+        } catch (err) {
+          console.error("Error:", errorMessage(err));
           process.exit(1);
         }
       },

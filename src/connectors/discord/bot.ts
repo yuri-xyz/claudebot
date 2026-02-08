@@ -5,10 +5,10 @@
  */
 
 import {
+  ActivityType,
   Client,
   Events,
   GatewayIntentBits,
-  type ChatInputCommandInteraction,
 } from "discord.js";
 import type { Connector, InvokeAgentFn } from "../types";
 import type { DiscordConfig } from "../../config/types";
@@ -22,6 +22,8 @@ export class DiscordConnector implements Connector {
   private invokeAgent: InvokeAgentFn;
   private logger: Logger;
   private running = false;
+  private queue: Promise<void> = Promise.resolve();
+  private queueDepth = 0;
 
   constructor(
     config: DiscordConfig,
@@ -43,23 +45,25 @@ export class DiscordConnector implements Connector {
 
     this.client.on(Events.ClientReady, (readyClient) => {
       this.logger.info(`Discord bot logged in as ${readyClient.user.tag}`);
+      readyClient.user.setPresence({
+        status: "online",
+        activities: [
+          { name: "for messages", type: ActivityType.Watching },
+        ],
+      });
     });
 
     this.client.on(Events.MessageCreate, (msg) => {
-      handleMessage(msg, this.config, this.invokeAgent).catch((err) => {
-        this.logger.error("Error handling Discord message:", err);
-      });
+      this.enqueue(() =>
+        handleMessage(msg, this.config, this.invokeAgent, this.logger),
+      );
     });
 
     this.client.on(Events.InteractionCreate, (interaction) => {
       if (!interaction.isChatInputCommand()) return;
-      handleSlashCommand(
-        interaction as ChatInputCommandInteraction,
-        this.config,
-        this.invokeAgent,
-      ).catch((err) => {
-        this.logger.error("Error handling slash command:", err);
-      });
+      this.enqueue(() =>
+        handleSlashCommand(interaction, this.config, this.invokeAgent),
+      );
     });
 
     this.client.on(Events.Error, (error) => {
@@ -81,5 +85,18 @@ export class DiscordConnector implements Connector {
 
   isRunning(): boolean {
     return this.running;
+  }
+
+  private enqueue(fn: () => Promise<void>): void {
+    this.queueDepth++;
+    if (this.queueDepth > 1) {
+      this.logger.info(`Message queued (${this.queueDepth - 1} ahead)`);
+    }
+    this.queue = this.queue.then(
+      () => fn().catch((err) => this.logger.error("Error handling Discord event:", err)),
+      () => fn().catch((err) => this.logger.error("Error handling Discord event:", err)),
+    ).finally(() => {
+      this.queueDepth--;
+    });
   }
 }

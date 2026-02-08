@@ -1,7 +1,7 @@
 /**
  * Skills Manager
  *
- * Install, remove, and list skills from ~/.claude/skills/
+ * Install, remove, and list skills from the claudebot skills directory.
  */
 
 import { mkdir, readdir, unlink } from "fs/promises";

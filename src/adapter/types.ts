@@ -21,6 +21,7 @@ export type ClaudeCodeRunnerConfig = {
   disallowedTools?: string[];
   /** Path to MCP config JSON to pass via --mcp-config */
   mcpConfigPath?: string;
+  systemPrompt?: string;
 };
 
 /**

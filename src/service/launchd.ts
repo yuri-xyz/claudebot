@@ -10,7 +10,10 @@ import type { ServiceStatus } from "./types";
 
 const LABEL = "com.claudebot.service";
 
-function generatePlist(executablePath: string): string {
+function generatePlist(programArgs: string[]): string {
+  const argsXml = programArgs
+    .map((a) => `    <string>${a}</string>`)
+    .join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -19,17 +22,16 @@ function generatePlist(executablePath: string): string {
   <string>${LABEL}</string>
   <key>ProgramArguments</key>
   <array>
-    <string>${executablePath}</string>
-    <string>daemon</string>
+${argsXml}
   </array>
   <key>KeepAlive</key>
   <true/>
   <key>RunAtLoad</key>
   <true/>
   <key>StandardOutPath</key>
-  <string>${paths.logsDir}/service-stdout.log</string>
+  <string>${paths.serviceStdoutLog}</string>
   <key>StandardErrorPath</key>
-  <string>${paths.logsDir}/service-stderr.log</string>
+  <string>${paths.serviceStderrLog}</string>
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
@@ -40,12 +42,12 @@ function generatePlist(executablePath: string): string {
 }
 
 export async function installLaunchd(
-  executablePath: string,
+  programArgs: string[],
 ): Promise<void> {
   await mkdir(paths.launchAgents, { recursive: true });
   await mkdir(paths.logsDir, { recursive: true });
 
-  const plist = generatePlist(executablePath);
+  const plist = generatePlist(programArgs);
   await Bun.write(paths.servicePlist, plist);
 }
 

@@ -1,3 +1,5 @@
+import { resolve, join } from "path";
+
 export { detectPlatform } from "./platform";
 export {
   installLaunchd,
@@ -30,10 +32,20 @@ import type { ServiceStatus, ServicePlatform } from "./types";
 
 export interface ServiceManager {
   platform: ServicePlatform;
-  install(executablePath: string): Promise<void>;
+  install(programArgs: string[]): Promise<void>;
   start(): Promise<void>;
   stop(): Promise<void>;
   getStatus(): Promise<ServiceStatus>;
+}
+
+/**
+ * Build the program arguments array for the daemon entrypoint.
+ * @param callerDir - pass `import.meta.dir` from the calling CLI module
+ */
+export function buildDaemonArgs(callerDir: string): string[] {
+  const entrypoint = resolve(join(callerDir, "..", "index.ts"));
+  const bunPath = process.argv[0] ?? "bun";
+  return [bunPath, "run", entrypoint, "daemon"];
 }
 
 export function getServiceManager(): ServiceManager {

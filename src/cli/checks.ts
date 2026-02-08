@@ -11,6 +11,7 @@ import {
   SUPPORTED_CLAUDE_CODE_VERSION,
 } from "../adapter/versionCheck";
 import { detectRuntime } from "../sandbox/runtime";
+import { getServiceManager } from "../service";
 import { errorMessage } from "../lib/errors";
 
 export type CheckStatus = "pass" | "warn" | "fail";
@@ -196,6 +197,46 @@ export function checkApiKey(): CheckResult {
   };
 }
 
+export async function checkService(): Promise<CheckResult> {
+  try {
+    const manager = getServiceManager();
+    const status = await manager.getStatus();
+
+    if (!status.installed) {
+      return {
+        name: "Background service",
+        status: "warn",
+        message: `not installed — run "claudebot service install"`,
+        optional: true,
+      };
+    }
+
+    if (!status.running) {
+      return {
+        name: "Background service",
+        status: "warn",
+        message: `installed but not running — run "claudebot service start"`,
+        optional: true,
+      };
+    }
+
+    const pidInfo = status.pid ? ` (pid ${status.pid})` : "";
+    return {
+      name: "Background service",
+      status: "pass",
+      message: `running via ${manager.platform}${pidInfo}`,
+      optional: true,
+    };
+  } catch {
+    return {
+      name: "Background service",
+      status: "warn",
+      message: "could not check service status",
+      optional: true,
+    };
+  }
+}
+
 // ── Aggregation ──────────────────────────────────────────────────────
 
 export async function runAllChecks(): Promise<CheckResult[]> {
@@ -207,6 +248,7 @@ export async function runAllChecks(): Promise<CheckResult[]> {
     checkDataDirs(),
     await checkDiscord(),
     checkApiKey(),
+    await checkService(),
   ];
 }
 

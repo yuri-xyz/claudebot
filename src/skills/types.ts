@@ -18,3 +18,11 @@ export interface SkillSource {
   identifier: string;
   rawUrl: string;
 }
+
+export interface SkillSearchResult {
+  id: string;
+  skillId: string;
+  name: string;
+  installs: number;
+  source: string;
+}

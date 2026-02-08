@@ -22,3 +22,8 @@ export async function ensureDataDirs(): Promise<void> {
   await mkdir(paths.logsDir, { recursive: true });
   await mkdir(paths.skillsDir, { recursive: true });
 }
+
+export async function clearServiceLogs(): Promise<void> {
+  await Bun.write(paths.serviceStdoutLog, "");
+  await Bun.write(paths.serviceStderrLog, "");
+}

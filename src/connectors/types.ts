@@ -19,6 +19,10 @@ export interface AgentResponse {
   sessionId?: string;
 }
 
+export interface AgentCallbacks {
+  onToolUse?: (toolName: string) => void;
+}
+
 export type ReplyTarget =
   | { type: "discord"; channelId: string; messageId?: string }
   | { type: "cli"; write: (text: string) => void }

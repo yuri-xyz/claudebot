@@ -4,6 +4,7 @@ export const DiscordConfigSchema = z.object({
   token: z.string(),
   allowedChannelIds: z.array(z.string()).default([]),
   allowedUserIds: z.array(z.string()).default([]),
+  allowedUsernames: z.array(z.string()).default([]),
 });
 
 export type DiscordConfig = z.infer<typeof DiscordConfigSchema>;
@@ -21,6 +22,7 @@ export const AgentConfigSchema = z.object({
   model: z.string().default("sonnet"),
   maxTurns: z.number().default(50),
   maxBudgetUsd: z.number().optional(),
+  systemPrompt: z.string().default("You are a helpful personal assistant."),
 });
 
 export type AgentConfig = z.infer<typeof AgentConfigSchema>;

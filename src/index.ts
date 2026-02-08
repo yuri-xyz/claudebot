@@ -14,6 +14,7 @@ const main = defineCommand({
     skills: () => import("./cli/skills").then((m) => m.default),
     doctor: () => import("./cli/doctor").then((m) => m.default),
     setup: () => import("./cli/setup").then((m) => m.default),
+    replace: () => import("./cli/replace").then((m) => m.default),
     daemon: () =>
       import("./service/daemon").then((m) =>
         defineCommand({

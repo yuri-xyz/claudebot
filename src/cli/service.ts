@@ -4,12 +4,12 @@
 
 import { defineCommand } from "citty";
 import { errorMessage } from "../lib/errors";
-import { getServiceManager } from "../service";
-import { loadConfig, ensureDataDirs } from "../config";
+import { getServiceManager, buildDaemonArgs } from "../service";
+import { loadConfig, ensureDataDirs, clearServiceLogs, paths } from "../config";
 import { setupSandbox } from "../sandbox/setup";
 import { detectRuntime } from "../sandbox/runtime";
 import { getContainerState } from "../sandbox/container";
-import type { SandboxConfig } from "../sandbox/types";
+import { buildSandboxConfig } from "../sandbox/types";
 import { createLogger } from "../lib/logger";
 
 const logger = createLogger("service");
@@ -30,21 +30,18 @@ export default defineCommand({
         const config = await loadConfig();
         const svc = getServiceManager();
 
-        const execPath = process.argv[0] ?? "claudebot";
+        const programArgs = buildDaemonArgs(import.meta.dir);
+
+        await clearServiceLogs();
 
         console.log(`Installing claudebot service (${svc.platform})...`);
-        await svc.install(execPath);
+        await svc.install(programArgs);
         console.log("Service installed.");
 
         // Setup sandbox if a container runtime is available
         try {
           const runtime = await detectRuntime(config.sandbox.runtime);
-          const sandboxCfg: SandboxConfig = {
-            runtime,
-            containerName: config.sandbox.containerName,
-            image: config.sandbox.image,
-            mountPaths: config.sandbox.mountPaths,
-          };
+          const sandboxCfg = buildSandboxConfig(config.sandbox, runtime);
 
           console.log("\nSetting up sandbox...");
           await setupSandbox(sandboxCfg, logger);
@@ -102,6 +99,38 @@ export default defineCommand({
       },
     }),
 
+    logs: defineCommand({
+      meta: {
+        name: "logs",
+        description: "Tail service logs",
+      },
+      args: {
+        follow: {
+          type: "boolean",
+          alias: "f",
+          description: "Follow log output (like tail -f)",
+          default: false,
+        },
+        lines: {
+          type: "string",
+          alias: "n",
+          description: "Number of lines to show",
+          default: "50",
+        },
+      },
+      async run({ args }) {
+        const tailArgs = ["-n", args.lines as string];
+        if (args.follow) tailArgs.push("-f");
+
+        const proc = Bun.spawn(
+          ["tail", ...tailArgs, paths.serviceStdoutLog, paths.serviceStderrLog],
+          { stdout: "inherit", stderr: "inherit" },
+        );
+
+        await proc.exited;
+      },
+    }),
+
     status: defineCommand({
       meta: {
         name: "status",
@@ -135,12 +164,7 @@ export default defineCommand({
           const runtime = await detectRuntime(config.sandbox.runtime);
           console.log(`Container: ${runtime} (available)`);
 
-          const sandboxCfg: SandboxConfig = {
-            runtime,
-            containerName: config.sandbox.containerName,
-            image: config.sandbox.image,
-            mountPaths: config.sandbox.mountPaths,
-          };
+          const sandboxCfg = buildSandboxConfig(config.sandbox, runtime);
           const state = await getContainerState(sandboxCfg);
 
           if (state.exists) {
