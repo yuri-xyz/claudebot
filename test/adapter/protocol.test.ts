@@ -55,7 +55,7 @@ describe("buildDenyResponse", () => {
 });
 
 describe("buildUserMessage", () => {
-  test("builds correct user message", () => {
+  test("builds correct user message from string", () => {
     const msg = JSON.parse(buildUserMessage("Hello!"));
 
     expect(msg.type).toBe("user");
@@ -63,6 +63,18 @@ describe("buildUserMessage", () => {
     expect(msg.message.content).toEqual([
       { type: "text", text: "Hello!" },
     ]);
+  });
+
+  test("builds correct user message from content blocks", () => {
+    const blocks = [
+      { type: "text" as const, text: "Describe this image" },
+      { type: "image" as const, source: { type: "url" as const, url: "https://example.com/img.png" } },
+    ];
+    const msg = JSON.parse(buildUserMessage(blocks));
+
+    expect(msg.type).toBe("user");
+    expect(msg.message.role).toBe("user");
+    expect(msg.message.content).toEqual(blocks);
   });
 });
 

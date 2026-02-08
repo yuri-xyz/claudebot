@@ -3,6 +3,7 @@
  */
 
 import type {
+  ContentBlock,
   ControlRequest,
   UserQuestionAnswers,
   PlanResponse,
@@ -129,12 +130,15 @@ export function buildPlanResponse(
   });
 }
 
-export function buildUserMessage(prompt: string): string {
+export function buildUserMessage(prompt: string | ContentBlock[]): string {
+  const content: ContentBlock[] =
+    typeof prompt === "string" ? [{ type: "text", text: prompt }] : prompt;
+
   return JSON.stringify({
     type: "user",
     message: {
       role: "user",
-      content: [{ type: "text", text: prompt }],
+      content,
     },
   });
 }

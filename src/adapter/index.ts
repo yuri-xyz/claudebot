@@ -19,6 +19,7 @@ export {
 
 export type {
   ClaudeCodeAdapterOptions,
+  ContentBlock,
   ClaudeCodeRunnerConfig,
   ClaudeCodeEventType,
   ClaudeCodeEventMap,

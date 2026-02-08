@@ -7,10 +7,17 @@
 import type { Logger } from "../lib/logger";
 
 /**
+ * Content block for multimodal prompts (text + images).
+ */
+export type ContentBlock =
+  | { type: "text"; text: string }
+  | { type: "image"; source: { type: "url"; url: string } };
+
+/**
  * Configuration for spawning a Claude Code process.
  */
 export type ClaudeCodeRunnerConfig = {
-  prompt: string;
+  prompt: string | ContentBlock[];
   cwd: string;
   permissionMode?: "default" | "acceptEdits" | "bypassPermissions" | "plan";
   maxTurns?: number;

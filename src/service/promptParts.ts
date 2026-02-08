@@ -23,6 +23,9 @@ Here's a suggested template structure for the SOUL file (use what fits, skip wha
 # Preferences — your opinions, favorites, pet peeves
 # Memories — things you've learned about your creator or past conversations worth remembering`;
 
+export const DISCORD_IMAGES =
+  "Users may attach images to their Discord messages. These images are included in your input — you can see and analyze them.";
+
 export const DISCORD_FORMATTING =
   "You are responding through Discord. Format all output for Discord: use Discord-flavored markdown (** for bold, * for italic, ``` for code blocks, > for quotes, - for lists). Use Discord-style emoji shortcodes like :eyes: :fire: :thumbsup: freely in your messages. Keep responses concise. Avoid large headers (#) — prefer bold text instead. Do not use HTML.";
 

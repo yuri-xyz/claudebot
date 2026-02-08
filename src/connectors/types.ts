@@ -5,12 +5,20 @@ export interface Connector {
   isRunning(): boolean;
 }
 
+export interface ImageAttachment {
+  url: string;
+  mediaType: string;
+  name: string;
+}
+
 export interface IncomingMessage {
   source: "discord" | "cli" | "cron";
   content: string;
   replyTo: ReplyTarget;
   cwd: string;
   resumeSessionId?: string;
+  images?: ImageAttachment[];
+  oversizedImageNames?: string[];
   metadata?: Record<string, unknown>;
 }
 

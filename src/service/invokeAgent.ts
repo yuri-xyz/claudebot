@@ -10,7 +10,7 @@ import {
   createBunProcessSpawner,
   createSandboxedProcessSpawner,
 } from "../adapter";
-import type { ClaudeCodeRunnerConfig, MessageEvent, ProcessSpawner } from "../adapter";
+import type { ClaudeCodeRunnerConfig, ContentBlock, MessageEvent, ProcessSpawner } from "../adapter";
 import { detectRuntime } from "../sandbox/runtime";
 import { containerExists } from "../sandbox/container";
 import { ensureSandboxReady } from "../sandbox/setup";
@@ -25,7 +25,7 @@ import type { ClaudebotConfig } from "../config/types";
 import type { Logger } from "../lib/logger";
 import { generateMcpConfig } from "../tools";
 import { paths } from "../config/paths";
-import { SOUL_INSTRUCTIONS, DISCORD_FORMATTING, discordReminders } from "./promptParts";
+import { SOUL_INSTRUCTIONS, DISCORD_FORMATTING, DISCORD_IMAGES, discordReminders } from "./promptParts";
 
 /**
  * Invokes Claude Code with a message and returns the response with session metadata.
@@ -42,7 +42,8 @@ export async function invokeAgent(
   const discordChannelId =
     message.replyTo.type === "discord" ? message.replyTo.channelId : undefined;
   const mcpConfigPath = await generateMcpConfig(discordChannelId);
-  const systemPrompt = await buildSystemPrompt(config, message.source);
+  const hasImages = (message.images?.length ?? 0) > 0;
+  const systemPrompt = await buildSystemPrompt(config, message.source, hasImages);
 
   const adapter = new ClaudeCodeAdapter({
     processSpawner: spawner,
@@ -107,8 +108,10 @@ export async function invokeAgent(
       }
     });
 
+    const prompt = buildPromptContent(message);
+
     const runnerConfig: ClaudeCodeRunnerConfig = {
-      prompt: message.content,
+      prompt,
       cwd: message.cwd,
       permissionMode: "bypassPermissions",
       resumeSessionId: message.resumeSessionId,
@@ -122,9 +125,39 @@ export async function invokeAgent(
   });
 }
 
+function buildPromptContent(
+  message: IncomingMessage,
+): string | ContentBlock[] {
+  const images = message.images;
+  const oversized = message.oversizedImageNames;
+  const hasImages = (images?.length ?? 0) > 0;
+  const hasOversized = (oversized?.length ?? 0) > 0;
+
+  if (!hasImages && !hasOversized) return message.content;
+
+  const blocks: ContentBlock[] = [];
+  if (message.content.trim()) {
+    blocks.push({ type: "text", text: message.content });
+  }
+  if (images) {
+    for (const img of images) {
+      blocks.push({ type: "image", source: { type: "url", url: img.url } });
+    }
+  }
+  if (oversized && hasOversized) {
+    const names = oversized.join(", ");
+    blocks.push({
+      type: "text",
+      text: `[Image upload skipped for ${names} — exceeds the 10 MB size limit]`,
+    });
+  }
+  return blocks;
+}
+
 async function buildSystemPrompt(
   config: ClaudebotConfig,
   source: IncomingMessage["source"],
+  hasImages: boolean,
 ): Promise<string> {
   let soulContent: string | undefined;
 
@@ -140,7 +173,9 @@ async function buildSystemPrompt(
   const parts: string[] = [
     soulContent ?? config.agent.systemPrompt,
     SOUL_INSTRUCTIONS,
-    ...(source === "discord" ? [DISCORD_FORMATTING, discordReminders()] : []),
+    ...(source === "discord"
+      ? [DISCORD_FORMATTING, ...(hasImages ? [DISCORD_IMAGES] : []), discordReminders()]
+      : []),
   ];
 
   return parts.join("\n\n");

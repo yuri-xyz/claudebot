@@ -6,7 +6,7 @@
 
 import ms from "ms";
 import type { Message, ChatInputCommandInteraction } from "discord.js";
-import type { InvokeAgentFn, IncomingMessage } from "../types";
+import type { InvokeAgentFn, IncomingMessage, ImageAttachment } from "../types";
 import type { DiscordConfig } from "../../config/types";
 import type { Logger } from "../../lib/logger";
 import { chunkMessage, formatError, formatThinking } from "./formatting";
@@ -37,7 +37,9 @@ export async function handleMessage(
   logger: Logger,
 ): Promise<void> {
   if (msg.author.bot) return;
-  if (!msg.content.trim()) return;
+
+  const { images, oversized } = extractImageAttachments(msg);
+  if (!msg.content.trim() && images.length === 0 && oversized.length === 0) return;
 
   const isDM = !msg.guildId;
   logger.info(
@@ -64,6 +66,8 @@ export async function handleMessage(
       messageId: msg.id,
     },
     cwd: process.cwd(),
+    images: images.length > 0 ? images : undefined,
+    oversizedImageNames: oversized.length > 0 ? oversized : undefined,
     metadata: {
       userId: msg.author.id,
       username: msg.author.username,
@@ -143,6 +147,32 @@ export async function handleSlashCommand(
   if (interaction.commandName === "status") {
     await interaction.reply("Claudebot is running.");
   }
+}
+
+const IMAGE_CONTENT_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+]);
+
+const MAX_IMAGE_BYTES = 10 * 1024 * 1024; // 10 MB
+
+function extractImageAttachments(msg: Message): {
+  images: ImageAttachment[];
+  oversized: string[];
+} {
+  const images: ImageAttachment[] = [];
+  const oversized: string[] = [];
+  for (const a of msg.attachments.values()) {
+    if (a.contentType === null || !IMAGE_CONTENT_TYPES.has(a.contentType)) continue;
+    if (a.size > MAX_IMAGE_BYTES) {
+      oversized.push(a.name);
+      continue;
+    }
+    images.push({ url: a.url, mediaType: a.contentType, name: a.name });
+  }
+  return { images, oversized };
 }
 
 const TYPING_REFRESH_MS = ms("7s");
