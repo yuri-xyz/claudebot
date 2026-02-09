@@ -39,12 +39,8 @@ COPY package.json tsconfig.json ./
 COPY src/ ./src/
 RUN bun link
 
-# Data directories
-RUN mkdir -p /root/.claudebot /root/.claude
-
-VOLUME /root/.claudebot
-VOLUME /root/.claude
-VOLUME /root/.local/share/signal-cli
+# Data directories (volumes configured via Railway platform)
+RUN mkdir -p /root/.claudebot /root/.claude /root/.local/share/signal-cli
 
 ENTRYPOINT ["bun", "run", "src/index.ts"]
 CMD ["daemon"]
