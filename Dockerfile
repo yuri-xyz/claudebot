@@ -37,12 +37,14 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json tsconfig.json ./
 COPY src/ ./src/
+RUN bun link
 
 # Data directories
 RUN mkdir -p /root/.claudebot /root/.claude
 
 VOLUME /root/.claudebot
 VOLUME /root/.claude
+VOLUME /root/.local/share/signal-cli
 
 ENTRYPOINT ["bun", "run", "src/index.ts"]
 CMD ["daemon"]

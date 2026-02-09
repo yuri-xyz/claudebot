@@ -52,12 +52,20 @@ export const X402ConfigSchema = z.object({
 
 export type X402Config = z.infer<typeof X402ConfigSchema>;
 
+export const AgentMailConfigSchema = z.object({
+  apiKey: z.string().describe("AgentMail API key"),
+  inboxId: z.string().describe("Default inbox ID (email address)"),
+});
+
+export type AgentMailConfig = z.infer<typeof AgentMailConfigSchema>;
+
 export const ClaudebotConfigSchema = z.object({
   discord: DiscordConfigSchema.optional(),
   sandbox: SandboxConfigSchema.default({}),
   agent: AgentConfigSchema.default({}),
   x402: X402ConfigSchema.optional(),
   signal: SignalConfigSchema.optional(),
+  agentmail: AgentMailConfigSchema.optional(),
 });
 
 export type ClaudebotConfig = z.infer<typeof ClaudebotConfigSchema>;

@@ -1,4 +1,5 @@
 import { describe, test, expect } from "bun:test";
+import { applyEnvOverlay } from "../../src/config/config";
 import { ClaudebotConfigSchema, SignalConfigSchema } from "../../src/config/types";
 
 describe("ClaudebotConfigSchema", () => {
@@ -110,5 +111,114 @@ describe("SignalConfigSchema", () => {
       signalCliBin: "/usr/local/bin/signal-cli",
     });
     expect(result.signalCliBin).toBe("/usr/local/bin/signal-cli");
+  });
+});
+
+const noEnv: Record<string, string | undefined> = {};
+
+describe("applyEnvOverlay", () => {
+  test("no env vars returns config unchanged", () => {
+    const raw = { discord: { token: "file-token" } };
+    expect(applyEnvOverlay(raw, noEnv)).toEqual(raw);
+  });
+
+  test("DISCORD_TOKEN populates missing discord section", () => {
+    const result = applyEnvOverlay({}, { DISCORD_TOKEN: "env-token" });
+    expect(result.discord).toEqual({ token: "env-token" });
+  });
+
+  test("DISCORD_TOKEN overrides existing token", () => {
+    const raw = {
+      discord: { token: "file-token", allowedChannelIds: ["123"] },
+    };
+    const result = applyEnvOverlay(raw, { DISCORD_TOKEN: "env-token" });
+    expect(result.discord).toEqual({
+      token: "env-token",
+      allowedChannelIds: ["123"],
+    });
+  });
+
+  test("SIGNAL_ACCOUNT creates signal config", () => {
+    const result = applyEnvOverlay({}, { SIGNAL_ACCOUNT: "+1234567890" });
+    expect(result.signal).toEqual({ account: "+1234567890" });
+  });
+
+  test("SIGNAL_ALLOWED_NUMBERS parsed as JSON array", () => {
+    const result = applyEnvOverlay(
+      {},
+      {
+        SIGNAL_ACCOUNT: "+1234567890",
+        SIGNAL_ALLOWED_NUMBERS: '["+1111111111","+2222222222"]',
+      },
+    );
+    expect(result.signal).toEqual({
+      account: "+1234567890",
+      allowedNumbers: ["+1111111111", "+2222222222"],
+    });
+  });
+
+  test("SIGNAL_ALLOWED_UUIDS parsed as JSON array", () => {
+    const result = applyEnvOverlay(
+      {},
+      {
+        SIGNAL_ACCOUNT: "+1234567890",
+        SIGNAL_ALLOWED_UUIDS: '["aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"]',
+      },
+    );
+    expect(result.signal).toEqual({
+      account: "+1234567890",
+      allowedUuids: ["aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"],
+    });
+  });
+
+  test("invalid JSON array for SIGNAL_ALLOWED_NUMBERS is ignored", () => {
+    const result = applyEnvOverlay(
+      {},
+      {
+        SIGNAL_ACCOUNT: "+1234567890",
+        SIGNAL_ALLOWED_NUMBERS: "not-json",
+      },
+    );
+    expect(result.signal).toEqual({ account: "+1234567890" });
+  });
+
+  test("X402_EVM_PRIVATE_KEY populates x402 section", () => {
+    const result = applyEnvOverlay(
+      {},
+      { X402_EVM_PRIVATE_KEY: "0xdeadbeef" },
+    );
+    expect(result.x402).toEqual({ evmPrivateKey: "0xdeadbeef" });
+  });
+
+  test("AGENTMAIL needs both env vars to activate", () => {
+    expect(
+      applyEnvOverlay({}, { AGENTMAIL_API_KEY: "key-123" }).agentmail,
+    ).toBeUndefined();
+
+    expect(
+      applyEnvOverlay({}, { AGENTMAIL_INBOX_ID: "inbox@example.com" }).agentmail,
+    ).toBeUndefined();
+
+    const both = applyEnvOverlay(
+      {},
+      { AGENTMAIL_API_KEY: "key-123", AGENTMAIL_INBOX_ID: "inbox@example.com" },
+    );
+    expect(both.agentmail).toEqual({
+      apiKey: "key-123",
+      inboxId: "inbox@example.com",
+    });
+  });
+
+  test("env vars merge with existing config sections", () => {
+    const raw = {
+      x402: { evmPrivateKey: "0xold", network: "base-sepolia" },
+    };
+    const result = applyEnvOverlay(raw, {
+      X402_EVM_PRIVATE_KEY: "0xnew",
+    });
+    expect(result.x402).toEqual({
+      evmPrivateKey: "0xnew",
+      network: "base-sepolia",
+    });
   });
 });

@@ -11,8 +11,10 @@ import { loadConfig } from "../config/config";
 export { runMcpServer } from "./server";
 export { skillsTools } from "./skills";
 export { cronTools } from "./cron";
+export { documentTools } from "./document";
 export { createX402Tools } from "./x402";
 export { createSignalTools } from "./signal";
+export { createEmailTools } from "./email";
 
 /**
  * Generates an MCP config file and returns the path.
@@ -41,6 +43,10 @@ export async function generateMcpConfig(
   if (userConfig.x402?.evmPrivateKey) {
     env.CLAUDEBOT_X402_EVM_PRIVATE_KEY = userConfig.x402.evmPrivateKey;
     env.CLAUDEBOT_X402_NETWORK = userConfig.x402.network ?? "base";
+  }
+  if (userConfig.agentmail?.apiKey && userConfig.agentmail?.inboxId) {
+    env.CLAUDEBOT_AGENTMAIL_API_KEY = userConfig.agentmail.apiKey;
+    env.CLAUDEBOT_AGENTMAIL_INBOX_ID = userConfig.agentmail.inboxId;
   }
 
   const config = {
