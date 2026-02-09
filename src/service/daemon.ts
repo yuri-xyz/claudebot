@@ -101,6 +101,16 @@ export async function runDaemon(): Promise<void> {
     }
   }, CRON_CHECK_INTERVAL_MS);
 
+  // Bind to $PORT if set (Railway health check expects a listening port)
+  const port = process.env.PORT;
+  if (port) {
+    Bun.serve({
+      port: Number(port),
+      fetch: () => new Response("ok"),
+    });
+    logger.info(`Health server listening on port ${port}`);
+  }
+
   logger.info("Daemon started successfully");
 
   // Graceful shutdown
