@@ -40,7 +40,8 @@ COPY src/ ./src/
 RUN bun link
 
 # Data directories (volumes configured via Railway platform)
-RUN mkdir -p /root/.claudebot /root/.claude /root/.local/share/signal-cli
+RUN mkdir -p /root/.claudebot /root/.claude /root/.local/share/signal-cli \
+    && echo '{"hasCompletedOnboarding": true}' > /root/.claude.json
 
 ENTRYPOINT ["bun", "run", "src/index.ts"]
 CMD ["daemon"]
