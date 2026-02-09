@@ -39,9 +39,22 @@ COPY package.json tsconfig.json ./
 COPY src/ ./src/
 RUN bun link
 
-# Data directories (volumes configured via Railway platform)
-RUN mkdir -p /root/.claudebot /root/.claude /root/.local/share/signal-cli \
-    && echo '{"hasCompletedOnboarding": true}' > /root/.claude.json
+# Claude Code onboarding flag (skip interactive setup)
+RUN echo '{"hasCompletedOnboarding": true}' > /root/.claude.json
 
-ENTRYPOINT ["bun", "run", "src/index.ts"]
+# Entrypoint script: symlink persistent volume paths then exec the app
+RUN cat <<'ENTRY' > /app/entrypoint.sh
+#!/bin/sh
+set -e
+# /data is the single Railway volume mount point
+mkdir -p /data/claudebot /data/signal-cli /data/claude /root/.local/share
+# Symlink expected paths into the volume
+ln -sfn /data/claudebot   /root/.claudebot
+ln -sfn /data/signal-cli  /root/.local/share/signal-cli
+ln -sfn /data/claude      /root/.claude
+exec "$@"
+ENTRY
+RUN chmod +x /app/entrypoint.sh
+
+ENTRYPOINT ["/app/entrypoint.sh", "bun", "run", "src/index.ts"]
 CMD ["daemon"]

@@ -85,22 +85,21 @@ The CLI checks in this order (first match wins):
 
 ## Railway Setup
 
-### Volumes
+### Volume
 
-Railway bans `VOLUME` in Dockerfiles. Configure volumes via the Railway dashboard or CLI:
+Railway bans `VOLUME` in Dockerfiles and allows **one volume per service**. We mount a single volume at `/data` and the entrypoint script symlinks subdirectories to the expected paths:
 
-| Mount Path | Purpose |
-|------------|---------|
-| `/root/.claudebot` | Config, crons, logs, persona |
-| `/root/.claude` | Claude CLI settings, skills, session data |
-| `/root/.local/share/signal-cli` | Signal identity keys and message store |
+| Volume Path | Symlinked To | Purpose |
+|-------------|-------------|---------|
+| `/data/claudebot` | `/root/.claudebot` | Config, crons, logs, persona |
+| `/data/signal-cli` | `/root/.local/share/signal-cli` | Signal identity keys and message store |
+| `/data/claude` | `/root/.claude` | Claude CLI settings, skills, session data |
 
 ```bash
-railway volume create --mount /root/.claudebot
-railway volume create --mount /root/.local/share/signal-cli
+railway volume add --mount-path /data
 ```
 
-The `/root/.claude` volume may not be necessary if all auth is via env vars, but preserves session history and skills across redeploys.
+The entrypoint script (`entrypoint.sh`) creates the subdirs and symlinks on every boot before starting the app.
 
 ### Environment Variables
 
